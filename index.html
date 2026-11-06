@@ -104,7 +104,8 @@ dialog p{font-size:13px;color:var(--dim);margin-top:8px}
 <script>
 const $=s=>document.querySelector(s);
 const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch{return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
-let cfg=Object.assign({gk:"",qk:"",gm:"gemini-3.8-flash",qm:"llama-3.3-70b-versatile",voice:true,wake:false},store.get("jv_cfg",{}));
+let cfg=Object.assign({gk:"",qk:"",gm:"gemini-3.5-flash-lite",qm:"llama-3.3-70b-versatile",voice:true,wake:false},store.get("jv_cfg",{}));
+if(/^gemini-(2\.5|3\.8)-flash$/.test(cfg.gm))cfg.gm="gemini-3.5-flash-lite";
 let notes=store.get("jv_notes",[]),timers=[],hist=[],busy=false,rec=null,lock=null;
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 const STATES={idle:"Pronto",listening:"Ti ascolto",thinking:"Elaboro",speaking:"Parlo"};
@@ -216,20 +217,24 @@ async function pickGemini(){
   const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models?pageSize=200&key=${encodeURIComponent(cfg.gk)}`,{signal:AbortSignal.timeout(10000)});
   if(!r.ok)throw new Error("Gemini elenco modelli "+r.status);
   const v=n=>+n.match(/gemini-(\d+(?:\.\d+)?)/)[1];
-  const ok=((await r.json()).models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes("generateContent")).map(m=>m.name.replace("models/","")).filter(n=>/^gemini-\d+(\.\d+)?-flash(-lite)?$/.test(n)).sort((x,y)=>v(y)-v(x)||(/lite/.test(x)-/lite/.test(y)));
+  const ok=((await r.json()).models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes("generateContent")).map(m=>m.name.replace("models/","")).filter(n=>/^gemini-\d+(\.\d+)?-flash(-lite)?$/.test(n)).sort((x,y)=>(/lite/.test(y)-/lite/.test(x))||v(y)-v(x));
   if(!ok.length)throw new Error("nessun modello Gemini disponibile per questa chiave");
   cfg.gm=ok[0];store.set("jv_cfg",cfg);return cfg.gm;
 }
-async function gem(body){
-  const go=b=>fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(cfg.gm)}:generateContent?key=${encodeURIComponent(cfg.gk)}`,{method:"POST",headers:{"Content-Type":"application/json"},signal:AbortSignal.timeout(25000),body:JSON.stringify(b)});
-  const both=async()=>{let r=await go({...body,tools:[{google_search:{}}]});if(!r.ok&&r.status!==404)r=await go(body);return r};
+async function gem(body,grounded){
+  const go=(b,ms)=>fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(cfg.gm)}:generateContent?key=${encodeURIComponent(cfg.gk)}`,{method:"POST",headers:{"Content-Type":"application/json"},signal:AbortSignal.timeout(ms),body:JSON.stringify(b)});
+  const both=async()=>{
+    if(grounded){try{const r=await go({...body,tools:[{google_search:{}}]},30000);if(r.ok||r.status===404)return r}catch(e){if(e.name!=="TimeoutError"&&e.name!=="AbortError")throw e}}
+    return go(body,30000)
+  };
   let r=await both();
   if(r.status===404){await pickGemini();r=await both()}
   if(!r.ok)throw new Error("Gemini "+r.status);
   return r.json();
 }
-async function viaGemini(){
-  const j=await gem({systemInstruction:{parts:[{text:SYS()}]},contents:hist.map(h=>({role:h.role==="user"?"user":"model",parts:[{text:h.text}]}))});
+const WEB=/oggi|ieri|domani|ultim[aeoi]|notizi|attual|adesso|in questo momento|prezzo|quanto costa|chi ha vinto|risultat|punteggio|borsa|quotazion|cerca|20[2-3]\d/;
+async function viaGemini(g){
+  const j=await gem({systemInstruction:{parts:[{text:SYS()}]},contents:hist.map(h=>({role:h.role==="user"?"user":"model",parts:[{text:h.text}]}))},g);
   return j.candidates[0].content.parts.map(p=>p.text||"").join("");
 }
 async function pickGroq(){
@@ -241,7 +246,7 @@ async function pickGroq(){
   cfg.qm=m;store.set("jv_cfg",cfg);return m;
 }
 async function viaGroq(){
-  const go=()=>fetch("https://api.groq.com/openai/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+cfg.qk},signal:AbortSignal.timeout(20000),body:JSON.stringify({model:cfg.qm,messages:[{role:"system",content:SYS()},...hist.map(h=>({role:h.role,content:h.text}))]})});
+  const go=()=>fetch("https://api.groq.com/openai/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+cfg.qk},signal:AbortSignal.timeout(30000),body:JSON.stringify({model:cfg.qm,messages:[{role:"system",content:SYS()},...hist.map(h=>({role:h.role,content:h.text}))]})});
   let r=await go();
   if(r.status===404||r.status===400){await pickGroq();r=await go()}
   if(!r.ok)throw new Error("Groq "+r.status);
@@ -252,7 +257,8 @@ async function ai(text){
   if(!provs.length)return "Per le domande aperte mi serve una chiave gratuita. Apri le impostazioni e inseriscila.";
   hist.push({role:"user",text});hist=hist.slice(-12);
   let err="";
-  for(const p of provs){try{const out=(await p()).replace(/[*_`#]/g,"").trim();if(out){hist.push({role:"assistant",text:out});return out}}catch(e){err=e.message}}
+  const g=WEB.test(text.toLowerCase());
+  for(const p of provs){const nm=p===viaGemini?"Gemini":"Groq";try{const out=(await p(g)).replace(/[*_`#]/g,"").trim();if(out){hist.push({role:"assistant",text:out});return out}}catch(e){err+=(err?" · ":"")+(e.name==="TimeoutError"||e.name==="AbortError"?nm+" tempo scaduto":/Failed to fetch|Load failed|NetworkError/i.test(e.message)?nm+" rete non raggiungibile":e.message)}}
   hist.pop();return "I servizi gratuiti non rispondono al momento ("+err+"). Riprova tra poco.";
 }
 
@@ -279,7 +285,7 @@ $("#f").onsubmit=e=>{e.preventDefault();const q=$("#q");const v=q.value;q.value=
 $("#sb").onclick=()=>{$("#gk").value=cfg.gk;$("#qk").value=cfg.qk;$("#gm").value=cfg.gm;$("#qm").value=cfg.qm;$("#vo").checked=cfg.voice;$("#wk").checked=cfg.wake;$("#sd").showModal()};
 $("#sx").onclick=()=>$("#sd").close();
 $("#ss").onclick=()=>{
-  Object.assign(cfg,{gk:$("#gk").value.trim(),qk:$("#qk").value.trim(),gm:$("#gm").value.trim()||"gemini-3.8-flash",qm:$("#qm").value.trim()||"llama-3.3-70b-versatile",voice:$("#vo").checked,wake:$("#wk").checked});
+  Object.assign(cfg,{gk:$("#gk").value.trim(),qk:$("#qk").value.trim(),gm:$("#gm").value.trim()||"gemini-3.5-flash-lite",qm:$("#qm").value.trim()||"llama-3.3-70b-versatile",voice:$("#vo").checked,wake:$("#wk").checked});
   store.set("jv_cfg",cfg);$("#sd").close();
   if(cfg.voice&&window.speechSynthesis)speechSynthesis.speak(new SpeechSynthesisUtterance(""));
   if(cfg.wake){listen();keepAwake()}else{stopListen();setState("idle");try{lock?.release()}catch{}}
