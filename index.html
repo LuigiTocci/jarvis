@@ -104,7 +104,7 @@ dialog p{font-size:13px;color:var(--dim);margin-top:8px}
 <script>
 const $=s=>document.querySelector(s);
 const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch{return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
-let cfg=Object.assign({gk:"",qk:"",gm:"gemini-2.5-flash",qm:"llama-3.3-70b-versatile",voice:true,wake:false},store.get("jv_cfg",{}));
+let cfg=Object.assign({gk:"",qk:"",gm:"gemini-3.8-flash",qm:"llama-3.3-70b-versatile",voice:true,wake:false},store.get("jv_cfg",{}));
 let notes=store.get("jv_notes",[]),timers=[],hist=[],busy=false,rec=null,lock=null;
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 const STATES={idle:"Pronto",listening:"Ti ascolto",thinking:"Elaboro",speaking:"Parlo"};
@@ -164,7 +164,8 @@ function renderNotes(){
 
 /* Meteo (Open-Meteo, gratuito e senza chiave) */
 const WX={0:"sereno",1:"quasi sereno",2:"parzialmente nuvoloso",3:"coperto",45:"nebbia",48:"nebbia",51:"pioviggine",53:"pioviggine",55:"pioviggine",61:"pioggia debole",63:"pioggia",65:"pioggia forte",71:"neve",73:"neve",75:"neve forte",80:"rovesci",81:"rovesci",82:"rovesci forti",95:"temporale",96:"temporale",99:"temporale"};
-function pos(){return new Promise(r=>{if(!navigator.geolocation)return r([41.9,12.5]);navigator.geolocation.getCurrentPosition(p=>r([p.coords.latitude,p.coords.longitude]),()=>r([41.9,12.5]),{timeout:6000})})}
+function pos(strict){const fb=strict?null:[41.9,12.5];return new Promise(r=>{if(!navigator.geolocation)return r(fb);navigator.geolocation.getCurrentPosition(p=>r([p.coords.latitude,p.coords.longitude]),()=>r(fb),{timeout:8000})})}
+async function dove(){const p=await pos(true);if(!p)return "Non riesco a ottenere la posizione. In Safari consenti la geolocalizzazione per questo sito.";const j=await (await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=17&accept-language=it&lat=${p[0]}&lon=${p[1]}`,{signal:AbortSignal.timeout(10000)})).json(),a=j.address||{};const t=[a.road,a.suburb||a.village||a.town||a.city].filter(Boolean).join(", ");return t?"Sei in "+t+".":"Posizione trovata, ma non riesco a darle un nome."}
 async function meteo(){
   const [la,lo]=await pos();
   const j=await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${la}&longitude=${lo}&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=1`,{signal:AbortSignal.timeout(10000)})).json();
@@ -173,7 +174,18 @@ async function meteo(){
 }
 
 /* Comandi locali: nessuna chiamata all’AI, quindi nessun limite */
-const SITES={youtube:"https://youtube.com",maps:"https://maps.apple.com",mappe:"https://maps.apple.com",gmail:"https://mail.google.com",calendario:"https://calendar.google.com",linkedin:"https://linkedin.com"};
+const SITES={youtube:"https://youtube.com",maps:"https://maps.apple.com",mappe:"https://maps.apple.com",gmail:"https://mail.google.com",calendario:"https://calendar.google.com",linkedin:"https://linkedin.com",musica:"music://",podcast:"podcasts://",messaggi:"sms:",mail:"mailto:",facetime:"facetime://",foto:"photos-redirect://",note:"mobilenotes://",promemoria:"x-apple-reminderkit://",file:"shareddocuments://",whatsapp:"whatsapp://",spotify:"spotify://",telegram:"tg://"};
+function linkLog(u,n){const d=document.createElement("div"),a=document.createElement("a");d.className="j";a.href=u;a.textContent="Tocca per aprire "+n;a.style.color="var(--cy)";d.append(a);$("#log").append(d)}
+function openUrl(u,n){if(/^https?:/.test(u)){if(!window.open(u,"_blank"))linkLog(u,n)}else{linkLog(u,n);location.href=u}}
+async function vedi(q){
+  if(!cfg.gk)return "Per la vista mi serve la chiave Gemini nelle impostazioni.";
+  let st;try{st=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}})}catch{return "Fotocamera bloccata. In Safari consenti l’accesso alla fotocamera per questo sito."}
+  const v=document.createElement("video");v.srcObject=st;v.muted=true;v.playsInline=true;await v.play();await new Promise(r=>setTimeout(r,900));
+  const k=Math.min(1,1024/Math.max(v.videoWidth,v.videoHeight)),c=document.createElement("canvas");c.width=v.videoWidth*k;c.height=v.videoHeight*k;c.getContext("2d").drawImage(v,0,0,c.width,c.height);st.getTracks().forEach(t=>t.stop());
+  const img=c.toDataURL("image/jpeg",.7).split(",")[1];
+  const j=await gem({systemInstruction:{parts:[{text:SYS()}]},contents:[{role:"user",parts:[{inlineData:{mimeType:"image/jpeg",data:img}},{text:q+" (descrivi ciò che vedi nell’immagine, in italiano, al massimo tre frasi)"}]}]});
+  return j.candidates[0].content.parts.map(p=>p.text||"").join("").replace(/[*_`#]/g,"").trim()
+}
 async function local(c,l){
   if(!l)return "Dimmi, sono qui.";
   let m;
@@ -185,44 +197,53 @@ async function local(c,l){
   if(m=c.match(/^(?:prendi (?:una )?nota|annota|nota|ricordami(?: di)?|ricorda(?: che)?)[:,\s]+(?:di |che )?(.+)/i)){notes.push(m[1]);saveNotes();return "Nota salvata."}
   if(/(cancella|svuota|elimina)\s.*note/.test(l)){notes=[];saveNotes();return "Note cancellate."}
   if(/(mostra|leggi|elenca|dimmi)\s.*note/.test(l))return notes.length?"Hai "+notes.length+" note. "+notes.map((n,i)=>(i+1)+": "+n).join(". "):"Non hai note salvate.";
+  if(/dove sono|in che posto sono|la mia posizione/.test(l))return await dove();
+  if(/cosa vedi|cosa c['’]è qui|inquadra|guarda (qui|questo)|leggi (questo|il testo)|che cos['’]è questo|cos['’]è questo/.test(l))return await vedi(c);
+  if(m=l.match(/^(?:chiama|telefona(?: a)?)\s+(\+?[\d\s]{6,})/)){openUrl("tel:"+m[1].replace(/\s/g,""),"la chiamata");return "Avvio la chiamata."}
+  if(m=c.match(/^(?:scrivi|manda un messaggio)\s+(?:a\s+)?(\+?[\d\s]{6,}?)\s*[:,]?\s+(.+)/i)){openUrl("sms:"+m[1].replace(/\s/g,"")+"&body="+encodeURIComponent(m[2]),"il messaggio");return "Preparo il messaggio."}
+  if(m=c.match(/^(?:naviga|portami|indicazioni)\s+(?:verso|a|per|da)?\s*(.+)/i)){openUrl("https://maps.apple.com/?dirflg=d&daddr="+encodeURIComponent(m[1]),"Mappe");return "Calcolo il percorso per "+m[1]+"."}
   if(/\bmeteo\b|che tempo fa|previsioni/.test(l))return await meteo();
   if(m=c.match(/^(?:esegui|lancia)\s+(?:il\s+)?(?:comando|scorciatoia)\s+(.+)/i)){location.href="shortcuts://run-shortcut?name="+encodeURIComponent(m[1]);return "Eseguo "+m[1]+"."}
-  if(m=l.match(/^apri\s+(.+)/)){const k=m[1].trim(),u=SITES[k]||"https://www.google.com/search?q="+encodeURIComponent(k);window.open(u,"_blank");return "Apro "+k+"."}
+  if(m=l.match(/^apri\s+(.+)/)){const k=m[1].trim(),u=SITES[k]||"https://www.google.com/search?q="+encodeURIComponent(k);openUrl(u,k);return "Apro "+k+"."}
   if(/^(grazie|ottimo|perfetto)\b/.test(l))return "Sempre a disposizione.";
   return null;
 }
 
 /* Cervello AI con ripiego automatico tra provider gratuiti */
-const SYS=()=>"Sei Jarvis, assistente personale in italiano: cortese, preciso, con un tocco di ironia sobria. Rispondi in massimo tre frasi brevi, adatte alla lettura vocale, senza markdown, elenchi o emoji. Oggi è "+new Date().toLocaleDateString("it-IT",{weekday:"long",day:"numeric",month:"long",year:"numeric"})+".";
-const num=(x,y)=>y.localeCompare(x,undefined,{numeric:true});
-const saveCfg=()=>store.set("jv_cfg",cfg);
+const SYS=()=>"Sei Jarvis, assistente personale in italiano: cortese, preciso, con un tocco di ironia sobria. Rispondi in massimo tre frasi brevi, adatte alla lettura vocale, senza markdown, elenchi o emoji. Oggi è "+new Date().toLocaleDateString("it-IT",{weekday:"long",day:"numeric",month:"long",year:"numeric"})+", sono le "+new Date().toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"})+"."+(notes.length?" Note salvate dell’utente: "+notes.join("; ")+".":"");
+/* Modelli: se quello salvato non esiste più (404), ne cerco uno valido e lo ricordo */
 async function pickGemini(){
-  const r=await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200&key="+encodeURIComponent(cfg.gk),{signal:AbortSignal.timeout(15000)});
+  const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models?pageSize=200&key=${encodeURIComponent(cfg.gk)}`,{signal:AbortSignal.timeout(10000)});
   if(!r.ok)throw new Error("Gemini elenco modelli "+r.status);
-  const ok=((await r.json()).models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes("generateContent")).map(m=>m.name.replace("models/","")).filter(n=>/^gemini-.*flash/.test(n)&&!/image|tts|live|audio|robotics|computer|embedding|thinking|exp/.test(n));
-  const pick=ok.filter(n=>/flash-lite/.test(n)).sort(num)[0]||ok.sort(num)[0];
-  if(!pick)throw new Error("nessun modello Gemini disponibile");
-  return pick;
+  const v=n=>+n.match(/gemini-(\d+(?:\.\d+)?)/)[1];
+  const ok=((await r.json()).models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes("generateContent")).map(m=>m.name.replace("models/","")).filter(n=>/^gemini-\d+(\.\d+)?-flash(-lite)?$/.test(n)).sort((x,y)=>v(y)-v(x)||(/lite/.test(x)-/lite/.test(y)));
+  if(!ok.length)throw new Error("nessun modello Gemini disponibile per questa chiave");
+  cfg.gm=ok[0];store.set("jv_cfg",cfg);return cfg.gm;
+}
+async function gem(body){
+  const go=b=>fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(cfg.gm)}:generateContent?key=${encodeURIComponent(cfg.gk)}`,{method:"POST",headers:{"Content-Type":"application/json"},signal:AbortSignal.timeout(25000),body:JSON.stringify(b)});
+  const both=async()=>{let r=await go({...body,tools:[{google_search:{}}]});if(!r.ok&&r.status!==404)r=await go(body);return r};
+  let r=await both();
+  if(r.status===404){await pickGemini();r=await both()}
+  if(!r.ok)throw new Error("Gemini "+r.status);
+  return r.json();
+}
+async function viaGemini(){
+  const j=await gem({systemInstruction:{parts:[{text:SYS()}]},contents:hist.map(h=>({role:h.role==="user"?"user":"model",parts:[{text:h.text}]}))});
+  return j.candidates[0].content.parts.map(p=>p.text||"").join("");
 }
 async function pickGroq(){
-  const r=await fetch("https://api.groq.com/openai/v1/models",{headers:{Authorization:"Bearer "+cfg.qk},signal:AbortSignal.timeout(15000)});
+  const r=await fetch("https://api.groq.com/openai/v1/models",{headers:{Authorization:"Bearer "+cfg.qk},signal:AbortSignal.timeout(10000)});
   if(!r.ok)throw new Error("Groq elenco modelli "+r.status);
-  const ids=((await r.json()).data||[]).map(m=>m.id).filter(n=>!/whisper|guard|tts|orpheus|playai|embed|prompt|safeguard/.test(n)).sort(num);
-  const pick=[/llama-3\.3-70b/,/llama-3\.1-8b/,/gpt-oss-20b/,/llama/,/./].map(re=>ids.find(n=>re.test(n))).find(Boolean);
-  if(!pick)throw new Error("nessun modello Groq disponibile");
-  return pick;
-}
-const gem=m=>fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(m)}:generateContent?key=${encodeURIComponent(cfg.gk)}`,{method:"POST",headers:{"Content-Type":"application/json"},signal:AbortSignal.timeout(20000),body:JSON.stringify({systemInstruction:{parts:[{text:SYS()}]},contents:hist.map(h=>({role:h.role==="user"?"user":"model",parts:[{text:h.text}]}))})});
-const grq=m=>fetch("https://api.groq.com/openai/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+cfg.qk},signal:AbortSignal.timeout(20000),body:JSON.stringify({model:m,messages:[{role:"system",content:SYS()},...hist.map(h=>({role:h.role,content:h.text}))]})});
-async function viaGemini(){
-  let r=await gem(cfg.gm);
-  if(r.status===404){cfg.gm=await pickGemini();saveCfg();r=await gem(cfg.gm)}
-  if(!r.ok)throw new Error("Gemini "+r.status);
-  const j=await r.json();return j.candidates[0].content.parts.map(p=>p.text||"").join("");
+  const ids=((await r.json()).data||[]).filter(m=>m.active!==false).map(m=>m.id).filter(i=>!/whisper|guard|tts|prompt|embed|distil/i.test(i));
+  const m=ids.find(i=>i==="llama-3.3-70b-versatile")||ids.find(i=>/gpt-oss-120b/.test(i))||ids.find(i=>/llama.*70b/.test(i))||ids.find(i=>/llama|qwen|gpt-oss/.test(i));
+  if(!m)throw new Error("nessun modello Groq disponibile");
+  cfg.qm=m;store.set("jv_cfg",cfg);return m;
 }
 async function viaGroq(){
-  let r=await grq(cfg.qm);
-  if(r.status===404||r.status===400){cfg.qm=await pickGroq();saveCfg();r=await grq(cfg.qm)}
+  const go=()=>fetch("https://api.groq.com/openai/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+cfg.qk},signal:AbortSignal.timeout(20000),body:JSON.stringify({model:cfg.qm,messages:[{role:"system",content:SYS()},...hist.map(h=>({role:h.role,content:h.text}))]})});
+  let r=await go();
+  if(r.status===404||r.status===400){await pickGroq();r=await go()}
   if(!r.ok)throw new Error("Groq "+r.status);
   const j=await r.json();return j.choices[0].message.content;
 }
@@ -247,7 +268,9 @@ async function handle(raw){
 }
 
 /* Interfaccia */
+function keepAwake(){try{navigator.wakeLock?.request("screen").then(l=>lock=l).catch(()=>{})}catch{}}
 $("#orb").onclick=()=>{
+  if(cfg.voice&&window.speechSynthesis&&!speechSynthesis.speaking)speechSynthesis.speak(new SpeechSynthesisUtterance(""));
   if(speechSynthesis.speaking){speechSynthesis.cancel();return}
   if(rec&&!cfg.wake){stopListen();setState("idle");return}
   listen();
@@ -256,17 +279,19 @@ $("#f").onsubmit=e=>{e.preventDefault();const q=$("#q");const v=q.value;q.value=
 $("#sb").onclick=()=>{$("#gk").value=cfg.gk;$("#qk").value=cfg.qk;$("#gm").value=cfg.gm;$("#qm").value=cfg.qm;$("#vo").checked=cfg.voice;$("#wk").checked=cfg.wake;$("#sd").showModal()};
 $("#sx").onclick=()=>$("#sd").close();
 $("#ss").onclick=()=>{
-  Object.assign(cfg,{gk:$("#gk").value.trim(),qk:$("#qk").value.trim(),gm:$("#gm").value.trim()||"gemini-2.5-flash",qm:$("#qm").value.trim()||"llama-3.3-70b-versatile",voice:$("#vo").checked,wake:$("#wk").checked});
+  Object.assign(cfg,{gk:$("#gk").value.trim(),qk:$("#qk").value.trim(),gm:$("#gm").value.trim()||"gemini-3.8-flash",qm:$("#qm").value.trim()||"llama-3.3-70b-versatile",voice:$("#vo").checked,wake:$("#wk").checked});
   store.set("jv_cfg",cfg);$("#sd").close();
   if(cfg.voice&&window.speechSynthesis)speechSynthesis.speak(new SpeechSynthesisUtterance(""));
-  if(cfg.wake){listen();try{navigator.wakeLock?.request("screen").then(l=>lock=l).catch(()=>{})}catch{}}else{stopListen();setState("idle");try{lock?.release()}catch{}}
+  if(cfg.wake){listen();keepAwake()}else{stopListen();setState("idle");try{lock?.release()}catch{}}
 };
 $("#nb").onclick=()=>{renderNotes();$("#nd").showModal()};
 $("#nx").onclick=()=>$("#nd").close();
-document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&cfg.wake&&!rec&&!busy)listen()});
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&cfg.wake){keepAwake();if(!rec&&!busy)listen()}});
 if(window.speechSynthesis)speechSynthesis.onvoiceschanged=()=>{};
+(()=>{const c=document.createElement("canvas");c.width=c.height=180;const x=c.getContext("2d");x.fillStyle="#04101c";x.fillRect(0,0,180,180);x.strokeStyle="#4fd8ff";x.lineWidth=6;x.beginPath();x.arc(90,90,62,0,7);x.stroke();x.lineWidth=3;x.beginPath();x.arc(90,90,40,0,7);x.stroke();x.fillStyle="rgba(79,216,255,.3)";x.fill();const l=document.createElement("link");l.rel="apple-touch-icon";l.href=c.toDataURL();document.head.append(l)})();
 clock();
 log("j","Sistemi attivi. Tocca il cerchio e parlami, oppure scrivi qui sotto.");
+if(cfg.wake)log("j","Ascolto continuo attivo: tocca il cerchio una volta per riattivare il microfono.");
 if(!cfg.gk&&!cfg.qk)log("j","Per le domande aperte inserisci una chiave gratuita nelle impostazioni. Timer, note, meteo e orario funzionano già.");
 </script>
 </body>
