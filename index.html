@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="it">
 <head>
+/* test audio */
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -9,7 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#04101c">
 <title>Jarvis</title>
-<meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; connect-src 'self' https://api.openai.com https://generativelanguage.googleapis.com https://api.groq.com https://api.coingecko.com https://nominatim.openstreetmap.org https://api.open-meteo.com https://api.spotify.com https://accounts.spotify.com https://gmail.googleapis.com https://www.googleapis.com https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; img-src 'self' data: blob:; media-src 'self' blob: data:; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; connect-src 'self' https://api.openai.com https://generativelanguage.googleapis.com https://api.groq.com https://api.coingecko.com https://nominatim.openstreetmap.org https://api.open-meteo.com https://api.spotify.com https://accounts.spotify.com https://itunes.apple.com https://gmail.googleapis.com https://www.googleapis.com https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; img-src 'self' data: blob:; media-src 'self' blob: data: https://*.itunes.apple.com https://*.mzstatic.com; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link rel="preconnect" href="https://generativelanguage.googleapis.com"><link rel="preconnect" href="https://api.groq.com">
 <style>
 :root{--bg:#030b14;--cy:#5ad7ff;--ice:#e4f9ff;--dim:#5f8ea5;--am:#ffb347;--line:#10364b;--glow:90,215,255}
@@ -126,6 +127,7 @@ dialog p{font-size:12px;color:var(--dim);margin-top:8px}
   <label>Modello Groq<input id="qm" type="text"></label>
   <label class="c"><input id="vo" type="checkbox">Risposte a voce</label>
   <label class="c"><input id="wk" type="checkbox">Ascolto continuo: rispondo quando dici “Jarvis”</label>
+  <label>Link Apple Music dell’album (anteprima di 30 secondi)<input id="am" type="text" autocomplete="off"></label>
   <label>Spotify Client ID (developer.spotify.com)<input id="spid" type="text" autocomplete="off"></label>
   <label class="c"><input id="spo" type="checkbox"> Canzone di avvio da Spotify (Premium e app Spotify aperta)</label>
   <label>Google Client ID (console.cloud.google.com)<input id="gcid" type="text" autocomplete="off"></label>
@@ -147,7 +149,7 @@ dialog p{font-size:12px;color:var(--dim);margin-top:8px}
 <script>
 const $=s=>document.querySelector(s);
 const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch{return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
-let cfg=Object.assign({spid:"",gcid:"",spo:false,tts:true,ok:"",om:"gpt-4.1-mini",gk:"",qk:"",gm:"gemini-3.5-flash-lite",qm:"llama-3.3-70b-versatile",voice:true,wake:false},store.get("jv_cfg",{}));
+let cfg=Object.assign({am:"https://music.apple.com/us/album/iron-man-2/575998519",spid:"",gcid:"",spo:false,tts:true,ok:"",om:"gpt-4.1-mini",gk:"",qk:"",gm:"gemini-3.5-flash-lite",qm:"llama-3.3-70b-versatile",voice:true,wake:false},store.get("jv_cfg",{}));
 if(/^gemini-(2\.5|3\.8)-flash$/.test(cfg.gm))cfg.gm="gemini-3.5-flash-lite";
 let notes=store.get("jv_notes",[]),timers=[],hist=[],busy=false,rec=null,lock=null;
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
@@ -190,19 +192,20 @@ function drain(){return new Promise(r=>{if(SP.n<=0)return r();SP.res=r;setTimeou
 function hud(){const e=i=>$("#"+i);if(!e("r1"))return;e("r1").textContent=navigator.onLine?"ONLINE":"OFFLINE";e("r2").textContent=LAT?LAT+" MS":"--";e("r3").textContent=(cfg.gm||"").replace("gemini-","").toUpperCase();e("r4").textContent=timers.length+" / "+notes.length}
 
 /* Canzone di avvio: il file resta sul dispositivo (IndexedDB) */
-let SONG=null,gain=null;
+let SONG=null,gain=null,MA=null;
 const idb=()=>new Promise((res,rej)=>{const r=indexedDB.open("jv",1);r.onupgradeneeded=()=>r.result.createObjectStore("f");r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
 async function songGet(){try{const d=await idb();return await new Promise(r=>{const q=d.transaction("f").objectStore("f").get("song");q.onsuccess=()=>r(q.result);q.onerror=()=>r(null)})}catch{return null}}
 async function songSet(f){const d=await idb();return new Promise(r=>{const t=d.transaction("f","readwrite");t.objectStore("f").put(f,"song");t.oncomplete=()=>r()})}
 async function playSong(){let f=await songGet();if(!f){try{const r=await fetch("shoot-to-thrill.mp3");if(r.ok)f=await r.blob()}catch{}}if(!f)return false;try{const ctx=new (window.AudioContext||window.webkitAudioContext)(),a=new Audio(URL.createObjectURL(f));gain=ctx.createGain();ctx.createMediaElementSource(a).connect(gain);gain.connect(ctx.destination);await ctx.resume();await a.play();SONG={ctx,a};return true}catch{return false}}
 function duck(v,s=.6){if(!gain)return;const g=gain.gain,t=gain.context.currentTime;g.cancelScheduledValues(t);g.setValueAtTime(g.value,t);g.linearRampToValueAtTime(v,t+s)}
 function endSong(){if(!SONG)return;const S=SONG;duck(0,3);SONG=null;setTimeout(()=>{try{S.a.pause();S.ctx.close()}catch{}gain=null},3200)}
+async function playPreview(){try{const id=(cfg.am.match(/(\d{6,})(?:[?#]|$)/)||[])[1],cc=(cfg.am.match(/music\.apple\.com\/(\w\w)\//)||[,"us"])[1];if(!id||!MA)return false;const j=await (await post("https://itunes.apple.com/lookup?entity=song&country="+cc+"&id="+id,{},10000)).json(),r=j.results||[],t=r.find(x=>/shoot to thrill/i.test(x.trackName||""))||r.find(x=>x.previewUrl);if(!t?.previewUrl)return false;MA.src=t.previewUrl;await MA.play();SONG={a:MA};setTimeout(()=>{try{MA.pause()}catch{}SONG=null},20000);return true}catch{return false}}
 async function boot(){
-  const b=$("#boot"),pl=$("#bl");b.classList.add("go");unlockTTS();
+  const b=$("#boot"),pl=$("#bl");b.classList.add("go");unlockTTS();MA=new Audio();MA.src=SIL;MA.play().catch(()=>{});
   if(cfg.voice&&window.speechSynthesis)speechSynthesis.speak(new SpeechSynthesisUtterance(""));
   const L=["JARVIS · AVVIO SISTEMI","NUCLEO ......... OK","VOCE ........... OK","RETE ........... "+(navigator.onLine?"OK":"OFF"),"TUTTI I SISTEMI ATTIVI"];
   let i=0;const t=setInterval(()=>{pl.textContent+=(L[i++]||"")+"\n";if(i>=L.length)clearInterval(t)},900);
-  let song=false,vsp=false;if(cfg.spo&&SPT){try{await spPlay();song=vsp=true}catch(e){log("j","Spotify: "+e.message)}}if(!song)song=await playSong();if(vsp)setTimeout(()=>spPause().catch(()=>{}),20000);
+  let song=false,vsp=false;if(cfg.spo&&SPT){try{await spPlay();song=vsp=true}catch(e){log("j","Spotify: "+e.message)}}if(!song)song=await playSong();if(!song)song=await playPreview();if(vsp)setTimeout(()=>spPause().catch(()=>{}),20000);
   await new Promise(r=>setTimeout(r,song?9000:4200));
   b.classList.add("off");setTimeout(()=>b.remove(),1000);
   const h=new Date().getHours();
@@ -447,10 +450,10 @@ $("#orb").onclick=()=>{
   listen();
 };
 $("#f").onsubmit=e=>{e.preventDefault();const q=$("#q");const v=q.value;q.value="";handle(v)};
-$("#sb").onclick=()=>{$("#ok").value=cfg.ok;$("#spid").value=cfg.spid;$("#gcid").value=cfg.gcid;$("#spo").checked=cfg.spo;$("#pin").value="";$("#tr").textContent="";$("#gk").value=cfg.gk;$("#qk").value=cfg.qk;$("#gm").value=cfg.gm;$("#qm").value=cfg.qm;$("#vo").checked=cfg.voice;$("#tt").checked=cfg.tts;$("#wk").checked=cfg.wake;$("#sd").showModal()};
+$("#sb").onclick=()=>{$("#ok").value=cfg.ok;$("#spid").value=cfg.spid;$("#am").value=cfg.am;$("#gcid").value=cfg.gcid;$("#spo").checked=cfg.spo;$("#pin").value="";$("#tr").textContent="";$("#gk").value=cfg.gk;$("#qk").value=cfg.qk;$("#gm").value=cfg.gm;$("#qm").value=cfg.qm;$("#vo").checked=cfg.voice;$("#tt").checked=cfg.tts;$("#wk").checked=cfg.wake;$("#sd").showModal()};
 $("#sx").onclick=()=>$("#sd").close();
 $("#ss").onclick=()=>{
-  Object.assign(cfg,{spid:$("#spid").value.trim(),gcid:$("#gcid").value.trim(),spo:$("#spo").checked,tts:$("#tt").checked,ok:$("#ok").value.trim(),gk:$("#gk").value.trim(),qk:$("#qk").value.trim(),gm:$("#gm").value.trim()||"gemini-3.5-flash-lite",qm:$("#qm").value.trim()||"llama-3.3-70b-versatile",voice:$("#vo").checked,wake:$("#wk").checked});
+  Object.assign(cfg,{am:$("#am").value.trim(),spid:$("#spid").value.trim(),gcid:$("#gcid").value.trim(),spo:$("#spo").checked,tts:$("#tt").checked,ok:$("#ok").value.trim(),gk:$("#gk").value.trim(),qk:$("#qk").value.trim(),gm:$("#gm").value.trim()||"gemini-3.5-flash-lite",qm:$("#qm").value.trim()||"llama-3.3-70b-versatile",voice:$("#vo").checked,wake:$("#wk").checked});
   persist();$("#sd").close();hud();
   const pn=$("#pin").value.trim();if(pn){if(pn.length<6)log("j","Il PIN deve avere almeno 6 cifre.");else{SALT=crypto.getRandomValues(new Uint8Array(16));derive(pn,SALT).then(k=>{VK=k;persist();log("j","PIN impostato: le chiavi sono cifrate sul dispositivo.")})}}
   const sf=$("#sg").files[0];if(sf)songSet(sf).then(()=>log("j","Canzone di avvio salvata."));
