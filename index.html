@@ -1,7 +1,6 @@
 <!doctype html>
 <html lang="it">
 <head>
-/* test audio */
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -10,7 +9,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#04101c">
 <title>Jarvis</title>
-<meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; connect-src 'self' https://api.openai.com https://generativelanguage.googleapis.com https://api.groq.com https://api.coingecko.com https://nominatim.openstreetmap.org https://api.open-meteo.com https://api.spotify.com https://accounts.spotify.com https://itunes.apple.com https://gmail.googleapis.com https://www.googleapis.com https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; img-src 'self' data: blob:; media-src 'self' blob: data: https://*.itunes.apple.com https://*.mzstatic.com; object-src 'none'; base-uri 'none'; form-action 'none'">
+<link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-180.png">
+<meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; connect-src 'self' https://*.workers.dev https://api.openai.com https://generativelanguage.googleapis.com https://api.groq.com https://api.coingecko.com https://nominatim.openstreetmap.org https://api.open-meteo.com https://api.spotify.com https://accounts.spotify.com https://itunes.apple.com https://gmail.googleapis.com https://www.googleapis.com https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; img-src 'self' data: blob:; media-src 'self' blob: data: https://*.itunes.apple.com https://*.mzstatic.com; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link rel="preconnect" href="https://generativelanguage.googleapis.com"><link rel="preconnect" href="https://api.groq.com">
 <style>
 :root{--bg:#030b14;--cy:#5ad7ff;--ice:#e4f9ff;--dim:#5f8ea5;--am:#ffb347;--line:#10364b;--glow:90,215,255}
@@ -49,8 +49,13 @@ main{display:grid;place-items:center;min-height:0}
 @keyframes pulse{50%{transform:scale(1.12)}}
 @keyframes beat{50%{transform:scale(.94);opacity:.65}}
 @keyframes scan{from{transform:translateY(-4px)}to{transform:translateY(100vh)}}
-[data-state=listening]{--glow:255,179,71}
-[data-state=listening] .r,[data-state=listening] .core{stroke:var(--am)}
+[data-state=listening]{--glow:228,249,255}
+[data-state=listening] .r,[data-state=listening] .core{stroke:var(--ice)}
+[data-state=speaking]{--glow:255,214,74}
+[data-state=speaking] .r,[data-state=speaking] .core,[data-state=speaking] .hex{stroke:#ffd84a}
+[data-state=speaking] #st{color:#ffd84a}
+[data-state=speaking] #cg stop,[data-state=speaking] #sw stop{stop-color:#ffd84a}
+[data-state=speaking] #cg stop:first-child{stop-color:#fff4c2}
 [data-state=listening] .cg,[data-state=listening] .core{animation:pulse 1.4s ease-in-out infinite}
 [data-state=thinking] .a{animation-duration:6s}[data-state=thinking] .b{animation-duration:3s}[data-state=thinking] .sweep{animation-duration:1.6s}
 [data-state=speaking] .cg,[data-state=speaking] .core{animation:pulse .5s ease-in-out infinite}
@@ -78,6 +83,15 @@ dialog p{font-size:12px;color:var(--dim);margin-top:8px}
 #pw{width:min(46vmin,260px);aspect-ratio:1;border-radius:50%;border:2px solid var(--cy);background:radial-gradient(circle,rgba(90,215,255,.25),transparent 70%);color:var(--cy);letter-spacing:.24em;font-size:14px;animation:beat 2.4s ease-in-out infinite}
 #boot.go #pw{animation:none;transform:scale(1.7);opacity:0;transition:transform 1.4s,opacity 1.4s}
 #bl{color:var(--cy);font-size:13px;letter-spacing:.14em;min-height:8em;white-space:pre}
+.ig{transform-origin:200px 200px}
+.intro .ig{animation:rise 1.6s cubic-bezier(.16,.84,.24,1) both;animation-delay:var(--d)}
+@keyframes rise{from{opacity:0;transform:scale(.2) rotate(-140deg)}to{opacity:1;transform:none}}
+.intro header,.intro section,.intro form{animation:fadein 1.4s 2.2s both}
+@keyframes fadein{from{opacity:0}}
+#boot{transition:opacity .9s,background .8s}#boot.go{background:transparent}
+#boot.go::after{content:"";position:fixed;inset:0;pointer-events:none;background:radial-gradient(circle at 50% 45%,rgba(228,249,255,.6),transparent 55%);opacity:0;animation:flash 1.8s ease-out .6s}
+@keyframes flash{0%{opacity:0;transform:scale(.4)}30%{opacity:1}100%{opacity:0;transform:scale(1.7)}}
+.r,.core,.hex,#st,stop{transition:stroke .6s,color .6s,stop-color .6s}
 @media(prefers-reduced-motion:reduce){*{animation:none!important}}
 </style>
 </head>
@@ -92,17 +106,17 @@ dialog p{font-size:12px;color:var(--dim);margin-top:8px}
     <svg viewBox="0 0 400 400" aria-hidden="true">
       <defs><radialGradient id="cg"><stop offset="0" stop-color="#e4f9ff" stop-opacity=".85"/><stop offset=".4" stop-color="#5ad7ff" stop-opacity=".4"/><stop offset="1" stop-color="#5ad7ff" stop-opacity="0"/></radialGradient>
       <linearGradient id="sw" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#5ad7ff" stop-opacity="0"/><stop offset="1" stop-color="#5ad7ff" stop-opacity=".5"/></linearGradient></defs>
-      <path class="r" d="M200 4v18M200 378v18M4 200h18M378 200h18" stroke-width="2"/>
-      <circle class="r t" cx="200" cy="200" r="188"/>
-      <circle class="r a" cx="200" cy="200" r="174"/>
-      <circle class="r b" cx="200" cy="200" r="150"/>
-      <circle class="r c" cx="200" cy="200" r="126"/>
-      <g class="sweep"><path d="M200 200V96A104 104 0 0 1 290 148Z" fill="url(#sw)"/></g>
-      <circle class="r" cx="200" cy="200" r="104" stroke-width="1"/>
-      <circle class="r d" cx="200" cy="200" r="94"/>
-      <circle class="cg" cx="200" cy="200" r="76" fill="url(#cg)"/>
-      <circle class="core" cx="200" cy="200" r="42"/>
-      <polygon class="hex" points="200,172 224,186 224,214 200,228 176,214 176,186"/>
+      <g class="ig" style="--d:0.00s"><path class="r" d="M200 4v18M200 378v18M4 200h18M378 200h18" stroke-width="2"/></g>
+      <g class="ig" style="--d:0.20s"><circle class="r t" cx="200" cy="200" r="188"/></g>
+      <g class="ig" style="--d:0.40s"><circle class="r a" cx="200" cy="200" r="174"/></g>
+      <g class="ig" style="--d:0.60s"><circle class="r b" cx="200" cy="200" r="150"/></g>
+      <g class="ig" style="--d:0.80s"><circle class="r c" cx="200" cy="200" r="126"/></g>
+      <g class="ig" style="--d:1.00s"><g class="sweep"><path d="M200 200V96A104 104 0 0 1 290 148Z" fill="url(#sw)"/></g></g>
+      <g class="ig" style="--d:1.20s"><circle class="r" cx="200" cy="200" r="104" stroke-width="1"/></g>
+      <g class="ig" style="--d:1.40s"><circle class="r d" cx="200" cy="200" r="94"/></g>
+      <g class="ig" style="--d:1.60s"><circle class="cg" cx="200" cy="200" r="76" fill="url(#cg)"/></g>
+      <g class="ig" style="--d:1.80s"><circle class="core" cx="200" cy="200" r="42"/></g>
+      <g class="ig" style="--d:2.00s"><polygon class="hex" points="200,172 224,186 224,214 200,228 176,214 176,186"/></g>
       <circle cx="200" cy="200" r="7" fill="#e4f9ff"/>
     </svg>
   </button>
@@ -127,6 +141,8 @@ dialog p{font-size:12px;color:var(--dim);margin-top:8px}
   <label>Modello Groq<input id="qm" type="text"></label>
   <label class="c"><input id="vo" type="checkbox">Risposte a voce</label>
   <label class="c"><input id="wk" type="checkbox">Ascolto continuo: rispondo quando dici “Jarvis”</label>
+  <label>Indirizzo del server Jarvis (Cloudflare Worker, https://…workers.dev)<input id="wu" type="text" autocomplete="off"></label>
+  <label>Token del server (JARVIS_TOKEN)<input id="wt" type="password" autocomplete="off"></label>
   <label>Link Apple Music dell’album (anteprima di 30 secondi)<input id="am" type="text" autocomplete="off"></label>
   <label>Spotify Client ID (developer.spotify.com)<input id="spid" type="text" autocomplete="off"></label>
   <label class="c"><input id="spo" type="checkbox"> Canzone di avvio da Spotify (Premium e app Spotify aperta)</label>
@@ -149,7 +165,7 @@ dialog p{font-size:12px;color:var(--dim);margin-top:8px}
 <script>
 const $=s=>document.querySelector(s);
 const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch{return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
-let cfg=Object.assign({am:"https://music.apple.com/us/album/iron-man-2/575998519",spid:"",gcid:"",spo:false,tts:true,ok:"",om:"gpt-4.1-mini",gk:"",qk:"",gm:"gemini-3.5-flash-lite",qm:"llama-3.3-70b-versatile",voice:true,wake:false},store.get("jv_cfg",{}));
+let cfg=Object.assign({wu:"",wt:"",am:"https://music.apple.com/us/album/iron-man-2/575998519",spid:"",gcid:"",spo:false,tts:true,ok:"",om:"gpt-4.1-mini",gk:"",qk:"",gm:"gemini-3.5-flash-lite",qm:"llama-3.3-70b-versatile",voice:true,wake:false},store.get("jv_cfg",{}));
 if(/^gemini-(2\.5|3\.8)-flash$/.test(cfg.gm))cfg.gm="gemini-3.5-flash-lite";
 let notes=store.get("jv_notes",[]),timers=[],hist=[],busy=false,rec=null,lock=null;
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
@@ -181,7 +197,7 @@ const SP={n:0,res:null};let TA=null,TCH=Promise.resolve();
 const SIL="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
 function unlockTTS(){try{TA=TA||new Audio();TA.src=SIL;TA.play().catch(()=>{})}catch{}}
 function stopTTS(){TCH=Promise.resolve();try{if(TA){TA.pause();TA.removeAttribute("src")}}catch{}}
-async function ttsFetch(t){const r=await post("https://api.openai.com/v1/audio/speech",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+cfg.ok},body:JSON.stringify({model:"gpt-4o-mini-tts",voice:"onyx",input:t,response_format:"mp3",instructions:"Parla in italiano come un maggiordomo britannico impeccabile: voce profonda, calma, elegante, con ironia sottile e ritmo misurato."})},20000);if(!r.ok)throw new Error(await em("Voce",r));return URL.createObjectURL(await r.blob())}
+async function ttsFetch(t){const r=await post("https://api.openai.com/v1/audio/speech",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+cfg.ok},body:JSON.stringify({model:"gpt-4o-mini-tts",voice:"onyx",input:t,response_format:"mp3",instructions:"Parla in italiano come un maggiordomo britannico impeccabile: voce profonda, calma, elegante, con ironia sottile e ritmo misurato."})},6000);if(!r.ok)throw new Error(await em("Voce",r));return URL.createObjectURL(await r.blob())}
 function enqTTS(t){SP.n++;const pr=ttsFetch(t).catch(()=>null);
   TCH=TCH.then(async()=>{const u=await pr;setState("speaking");
     if(u&&TA){TA.src=u;try{await TA.play();await new Promise(r=>{TA.onended=TA.onerror=r})}catch{}}
@@ -199,8 +215,10 @@ async function songSet(f){const d=await idb();return new Promise(r=>{const t=d.t
 async function playSong(){let f=await songGet();if(!f){try{const r=await fetch("shoot-to-thrill.mp3");if(r.ok)f=await r.blob()}catch{}}if(!f)return false;try{const ctx=new (window.AudioContext||window.webkitAudioContext)(),a=new Audio(URL.createObjectURL(f));gain=ctx.createGain();ctx.createMediaElementSource(a).connect(gain);gain.connect(ctx.destination);await ctx.resume();await a.play();SONG={ctx,a};return true}catch{return false}}
 function duck(v,s=.6){if(!gain)return;const g=gain.gain,t=gain.context.currentTime;g.cancelScheduledValues(t);g.setValueAtTime(g.value,t);g.linearRampToValueAtTime(v,t+s)}
 function endSong(){if(!SONG)return;const S=SONG;duck(0,3);SONG=null;setTimeout(()=>{try{S.a.pause();S.ctx.close()}catch{}gain=null},3200)}
-async function playPreview(){try{const id=(cfg.am.match(/(\d{6,})(?:[?#]|$)/)||[])[1],cc=(cfg.am.match(/music\.apple\.com\/(\w\w)\//)||[,"us"])[1];if(!id||!MA)return false;const j=await (await post("https://itunes.apple.com/lookup?entity=song&country="+cc+"&id="+id,{},10000)).json(),r=j.results||[],t=r.find(x=>/shoot to thrill/i.test(x.trackName||""))||r.find(x=>x.previewUrl);if(!t?.previewUrl)return false;MA.src=t.previewUrl;await MA.play();SONG={a:MA};setTimeout(()=>{try{MA.pause()}catch{}SONG=null},20000);return true}catch{return false}}
+async function playPreview(){try{const id=(cfg.am.match(/(\d{6,})(?:[?#]|$)/)||[])[1],cc=(cfg.am.match(/music\.apple\.com\/(\w\w)\//)||[,"us"])[1];if(!id||!MA)return false;const j=await (await post("https://itunes.apple.com/lookup?entity=song&country="+cc+"&id="+id,{},10000)).json(),r=j.results||[],t=r.find(x=>/shoot to thrill/i.test(x.trackName||""))||r.find(x=>x.previewUrl);if(!t?.previewUrl)return false;MA.src=t.previewUrl;await MA.play();SONG={a:MA};setTimeout(()=>{try{MA.pause()}catch{}SONG=null},6000);return true}catch{return false}}
+let PEND=null;{const q=new URLSearchParams(location.search);if(q.get("sc")){PEND={n:q.get("sc"),t:q.get("result")||""};history.replaceState(null,"",location.origin+location.pathname)}}
 async function boot(){
+  document.body.classList.add("intro");setTimeout(()=>document.body.classList.remove("intro"),4200);
   const b=$("#boot"),pl=$("#bl");b.classList.add("go");unlockTTS();MA=new Audio();MA.src=SIL;MA.play().catch(()=>{});
   if(cfg.voice&&window.speechSynthesis)speechSynthesis.speak(new SpeechSynthesisUtterance(""));
   const L=["JARVIS · AVVIO SISTEMI","NUCLEO ......... OK","VOCE ........... OK","RETE ........... "+(navigator.onLine?"OK":"OFF"),"TUTTI I SISTEMI ATTIVI"];
@@ -212,6 +230,7 @@ async function boot(){
   duck(.25);await say((h<6?"Buonanotte":h<13?"Buongiorno":h<19?"Buon pomeriggio":"Buonasera")+", signore. Tutti i sistemi sono attivi.");
   duck(.85,1.5);setTimeout(endSong,20000);
   if(!song)log("j","Per la musica di avvio scegli il file del brano nelle impostazioni.");
+  if(PEND){const x=PEND;PEND=null;FORCEAI=true;await handle("Dati dal mio iPad («"+x.n+"»): "+(x.t||"nessun risultato").slice(0,3000)+" — dimmi in breve cosa conta e cosa richiede azione.");FORCEAI=false}
   if(cfg.wake)listen();
 }
 
@@ -285,11 +304,15 @@ async function life(c,l){
   if(/cosa devo fare|le mie attività|la mia agenda/.test(l))return TASKS.length?"Hai "+TASKS.length+" attività: "+TASKS.map((t,i)=>(i+1)+", "+t).join("; ")+".":"Nessuna attività in sospeso.";
   if(m=l.match(/^(?:completa|fatto)\s+(?:attività\s+)?(\d+)/)){const t=TASKS.splice(m[1]-1,1);store.set("jv_tasks",TASKS);return t.length?"Completata: "+t[0]+".":"Non trovo quell’attività."}
   if(m=l.match(/prezzo (?:del |di )?(bitcoin|btc|ethereum|eth|solana)/)){const id={bitcoin:"bitcoin",btc:"bitcoin",ethereum:"ethereum",eth:"ethereum",solana:"solana"}[m[1]],x=(await (await post("https://api.coingecko.com/api/v3/simple/price?ids="+id+"&vs_currencies=eur&include_24hr_change=true",{},10000)).json())[id];return x?m[1]+" vale "+eur(x.eur)+", "+(x.eur_24h_change>=0?"+":"")+x.eur_24h_change.toFixed(1)+" per cento nelle ultime 24 ore.":"Dati non disponibili."}
-  if(/posta|email|mail/.test(l)&&/leggi|controlla|nuov|non lett|riassumi|ho /.test(l))return await mail();
-  if(/agenda|calendario|impegni|appuntamenti/.test(l)&&/oggi|domani|settimana|cosa ho/.test(l))return await agenda(/domani/.test(l)?1:0,/settimana/.test(l)?7:1);
+  if(!(cfg.wu&&cfg.wt)&&/posta|email|mail/.test(l)&&/leggi|controlla|nuov|non lett|riassumi|ho /.test(l))return await mail();
+  if(!(cfg.wu&&cfg.wt)&&/agenda|calendario|impegni|appuntamenti/.test(l)&&/oggi|domani|settimana|cosa ho/.test(l))return await agenda(/domani/.test(l)?1:0,/settimana/.test(l)?7:1);
   return null
 }
+let FORCEAI=false;
+function scRun(n){location.href="shortcuts://x-callback-url/run-shortcut?name="+encodeURIComponent(n)+"&x-success="+encodeURIComponent(SPR()+"?sc="+encodeURIComponent(n))}
+const AP=[[/agenda apple|calendario apple|impegni apple/,"Jarvis Agenda"],[/promemoria apple|i miei promemoria/,"Jarvis Promemoria"],[/dati salute|come ho dormito|i miei passi/,"Jarvis Salute"],[/posta apple|messaggi non letti/,"Jarvis Posta"]];
 async function local(c,l){
+  for(const[r,n]of AP)if(r.test(l)){scRun(n);return "Chiedo a "+n.replace("Jarvis ","")+" sull’iPad."}
   if(!l)return "Dimmi, sono qui.";
   let m;
   {const r=await life(c,l);if(r)return r}
@@ -307,7 +330,7 @@ async function local(c,l){
   if(m=c.match(/^(?:scrivi|manda un messaggio)\s+(?:a\s+)?(\+?[\d\s]{6,}?)\s*[:,]?\s+(.+)/i)){openUrl("sms:"+m[1].replace(/\s/g,"")+"&body="+encodeURIComponent(m[2]),"il messaggio");return "Preparo il messaggio."}
   if(m=c.match(/^(?:naviga|portami|indicazioni)\s+(?:verso|a|per|da)?\s*(.+)/i)){openUrl("https://maps.apple.com/?dirflg=d&daddr="+encodeURIComponent(m[1]),"Mappe");return "Calcolo il percorso per "+m[1]+"."}
   if(/\bmeteo\b|che tempo fa|previsioni/.test(l))return await meteo();
-  if(m=c.match(/^(?:esegui|lancia)\s+(?:il\s+)?(?:comando|scorciatoia)\s+(.+)/i)){location.href="shortcuts://run-shortcut?name="+encodeURIComponent(m[1]);return "Eseguo "+m[1]+"."}
+  if(m=c.match(/^(?:esegui|lancia)\s+(?:il\s+)?(?:comando|scorciatoia)\s+(.+)/i)){scRun(m[1]);return "Eseguo "+m[1]+"."}
   if(m=l.match(/^apri\s+(.+)/)){const k=m[1].trim(),u=SITES[k]||"https://www.google.com/search?q="+encodeURIComponent(k);openUrl(u,k);return "Apro "+k+"."}
   if(/^(grazie|ottimo|perfetto)\b/.test(l))return "Sempre a disposizione.";
   return null;
@@ -327,7 +350,7 @@ async function pickGemini(){
 /* Streaming: il timeout scatta solo se non arrivano dati per molto tempo, non sul totale */
 const TO=()=>Object.assign(new Error("timeout"),{name:"TimeoutError"});
 async function post(url,opts,ms){const ac=new AbortController(),t=setTimeout(()=>ac.abort(),ms);try{return await fetch(url,{...opts,signal:ac.signal})}finally{clearTimeout(t)}}
-async function sse(r,pick,cb,idle=20000){
+async function sse(r,pick,cb,idle=8000){
   const rd=r.body.getReader(),dec=new TextDecoder();let buf="",out="";
   const next=()=>new Promise((res,rej)=>{const t=setTimeout(()=>rej(TO()),idle);rd.read().then(v=>{clearTimeout(t);res(v)},e=>{clearTimeout(t);rej(e)})});
   for(;;){
@@ -343,7 +366,7 @@ async function gem(body,grounded){
   let last="",picked=false;
   for(let i=0;i<vs.length;i++){
     let r;
-    try{r=await post(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(cfg.gm)}:streamGenerateContent?alt=sse&key=${encodeURIComponent(cfg.gk)}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(vs[i])},20000)}
+    try{r=await post(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(cfg.gm)}:streamGenerateContent?alt=sse&key=${encodeURIComponent(cfg.gk)}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(vs[i])},6000)}
     catch(e){if(e.name==="AbortError"){last="timeout";continue}throw e}
     if(r.status===404&&!picked){picked=true;await pickGemini();i--;continue}
     if(r.ok)return r;
@@ -363,7 +386,7 @@ async function pickGroq(){
   cfg.qm=m;persist();return m;
 }
 async function viaGroq(g,cb){
-  const go=()=>post("https://api.groq.com/openai/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+cfg.qk},body:JSON.stringify({model:cfg.qm,stream:true,messages:[{role:"system",content:SYS()},...hist.map(h=>({role:h.role,content:h.text}))]})},20000);
+  const go=()=>post("https://api.groq.com/openai/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+cfg.qk},body:JSON.stringify({model:cfg.qm,stream:true,messages:[{role:"system",content:SYS()},...hist.map(h=>({role:h.role,content:h.text}))]})},6000);
   let r;
   try{r=await go()}catch(e){if(e.name==="AbortError")throw TO();throw e}
   if(r.status===404||r.status===400){await pickGroq();r=await go()}
@@ -371,7 +394,7 @@ async function viaGroq(g,cb){
   return sse(r,j=>j.choices?.[0]?.delta?.content,cb)
 }
 /* Caveau: chiavi cifrate (AES-GCM, PBKDF2) con il tuo PIN; sbloccate solo in memoria */
-const SEC=["ok","gk","qk"],B=a=>btoa(String.fromCharCode(...new Uint8Array(a))),U=t=>Uint8Array.from(atob(t),c=>c.charCodeAt(0));
+const SEC=["ok","gk","qk","wt"],B=a=>btoa(String.fromCharCode(...new Uint8Array(a))),U=t=>Uint8Array.from(atob(t),c=>c.charCodeAt(0));
 let VK=null,SALT=null,FAIL=0,HID=0,SPT=cfg.sp||null,SPA=null,SPX=0,GT=null,GX=0;
 const derive=async(pin,salt)=>{const k=await crypto.subtle.importKey("raw",new TextEncoder().encode(pin),"PBKDF2",false,["deriveKey"]);return crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations:250000,hash:"SHA-256"},k,{name:"AES-GCM",length:256},false,["encrypt","decrypt"])};
 async function persist(){const pub={...cfg};if(VK){SEC.forEach(k=>delete pub[k]);delete pub.sp}else pub.sp=SPT;store.set("jv_cfg",pub);if(!VK)return;const sec={sp:SPT};SEC.forEach(k=>sec[k]=cfg[k]);const iv=crypto.getRandomValues(new Uint8Array(12)),ct=await crypto.subtle.encrypt({name:"AES-GCM",iv},VK,new TextEncoder().encode(JSON.stringify(sec)));store.set("jv_vault",{s:B(SALT),i:B(iv),d:B(ct)})}
@@ -390,7 +413,7 @@ async function spPause(){const H=await spH();await post("https://api.spotify.com
 /* Google: sola lettura di Gmail e Calendar, token solo in memoria */
 function gLoad(){return new Promise((res,rej)=>{if(window.google?.accounts)return res();const e=document.createElement("script");e.src="https://accounts.google.com/gsi/client";e.onload=res;e.onerror=rej;document.head.append(e)})}
 async function gConnect(){await gLoad();google.accounts.oauth2.initTokenClient({client_id:cfg.gcid,scope:"https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/calendar.readonly",callback:r=>{if(r.access_token){GT=r.access_token;GX=Date.now()+r.expires_in*1000-60000;log("j","Google collegato per un’ora.")}else log("j","Collegamento Google non riuscito.")}}).requestAccessToken()}
-async function gj(u){if(!GT||Date.now()>GX)throw new Error("Google non collegato: tocca Collega Google nelle impostazioni");const r=await post(u,{headers:{Authorization:"Bearer "+GT}},20000);if(!r.ok)throw new Error(await em("Google",r));return r.json()}
+async function gj(u){if(!GT||Date.now()>GX)throw new Error("Google non collegato: tocca Collega Google nelle impostazioni");const r=await post(u,{headers:{Authorization:"Bearer "+GT}},6000);if(!r.ok)throw new Error(await em("Google",r));return r.json()}
 async function mail(){const l=(await gj("https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=6&q="+encodeURIComponent("is:unread in:inbox newer_than:3d"))).messages||[];if(!l.length)return "Nessuna email non letta negli ultimi tre giorni.";
   const ms=await Promise.all(l.map(m=>gj("https://gmail.googleapis.com/gmail/v1/users/me/messages/"+m.id+"?format=metadata&metadataHeaders=From&metadataHeaders=Subject"))),h=(m,n)=>(m.payload.headers.find(x=>x.name===n)||{}).value||"";
   return ai("Riassumi in modo utile queste email non lette e dimmi quali richiedono azione:\n"+ms.map((m,i)=>(i+1)+". Da "+h(m,"From").replace(/<.*>/,"").trim()+": "+h(m,"Subject")+" — "+(m.snippet||"").slice(0,140)).join("\n"))}
@@ -398,7 +421,7 @@ async function agenda(d,n){const a=new Date();a.setHours(0,0,0,0);a.setDate(a.ge
 async function em(n,r){let t="";try{t=(JSON.parse(await r.text()).error||{}).message||""}catch{}return n+" "+r.status+(t?": "+t.slice(0,110):"")}
 async function pickOpenAI(){const r=await post("https://api.openai.com/v1/models",{headers:{Authorization:"Bearer "+cfg.ok}},15000);if(!r.ok)throw new Error(await em("ChatGPT",r));const ids=((await r.json()).data||[]).map(m=>m.id).filter(i=>/^gpt-/.test(i)&&!/audio|realtime|image|tts|transcribe|search|instruct|codex|preview|\d{4}-\d\d-\d\d$/.test(i));const m=["gpt-4.1-mini","gpt-4o-mini","gpt-5-mini"].find(x=>ids.includes(x))||ids.find(i=>/mini/.test(i))||ids[0];if(!m)throw new Error("ChatGPT: nessun modello disponibile");cfg.om=m;persist();return m}
 async function viaOpenAI(g,cb){
-  const go=()=>post("https://api.openai.com/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+cfg.ok},body:JSON.stringify({model:cfg.om,stream:true,messages:[{role:"system",content:SYS()},...hist.map(h=>({role:h.role,content:h.text}))]})},20000);
+  const go=()=>post("https://api.openai.com/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+cfg.ok},body:JSON.stringify({model:cfg.om,stream:true,messages:[{role:"system",content:SYS()},...hist.map(h=>({role:h.role,content:h.text}))]})},6000);
   let r;try{r=await go()}catch(e){if(e.name==="AbortError")throw TO();throw e}
   if(r.status===404||r.status===400){await pickOpenAI();r=await go()}
   if(!r.ok)throw new Error(await em("ChatGPT",r));
@@ -411,13 +434,23 @@ $("#tst").onclick=async()=>{const o=$("#tr"),out=[];o.textContent="Test in corso
   if(g)await T("Gemini","https://generativelanguage.googleapis.com/v1beta/models?pageSize=1&key="+encodeURIComponent(g),{});
   if(q)await T("Groq","https://api.groq.com/openai/v1/models",{Authorization:"Bearer "+q});
   o.textContent=out.join(" · ")||"Inserisci almeno una chiave."};
+function askConfirm(p){const d=document.createElement("div");d.className="j";d.append(p.summary+" ");
+  for(const[l,ok]of[["Conferma",true],["Annulla",false]]){const b=document.createElement("button");b.textContent=l;b.style.margin="6px 8px 0 0";
+    b.onclick=async()=>{d.querySelectorAll("button").forEach(x=>x.remove());try{const r=await post(cfg.wu+"/confirm",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+cfg.wt},body:JSON.stringify({id:p.id,ok})},15000),j=await r.json();d.append("→ "+(j.text||j.error?.message||"fatto"))}catch{d.append("→ errore di rete")}};d.append(b)}
+  $("#log").append(d);$("#log").scrollTop=1e5}
+async function viaWorker(g,cb){
+  const r=await post(cfg.wu+"/chat",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+cfg.wt},body:JSON.stringify({system:SYS(),messages:hist.map(h=>({role:h.role,content:h.text}))})},25000);
+  if(!r.ok)throw new Error(await em("Server",r));
+  const j=await r.json();(j.pending||[]).forEach(askConfirm);cb(j.text||"");return j.text||""}
 async function ai(text){
-  const provs=[];if(cfg.ok)provs.push(viaOpenAI);if(cfg.gk)provs.push(viaGemini);if(cfg.qk)provs.push(viaGroq);
+  const provs=[];if(cfg.wu&&cfg.wt)provs.push(viaWorker);if(cfg.ok)provs.push(viaOpenAI);if(cfg.gk)provs.push(viaGemini);if(cfg.qk)provs.push(viaGroq);
+  const PS=window.PSTAT=window.PSTAT||{},K=f=>f===viaWorker?"w":f===viaOpenAI?"o":f===viaGemini?"g":"q",bad=f=>(PS[K(f)]?.f||0)>Date.now()-120000;
+  provs.sort((a,b)=>bad(a)-bad(b)||(PS[K(a)]?.ms||0)-(PS[K(b)]?.ms||0));
   if(!provs.length)return "Per le domande aperte mi serve una chiave gratuita. Apri le impostazioni e inseriscila.";
   hist.push({role:"user",text});hist=hist.slice(-12);
   let err="";
   const g=WEB.test(text.toLowerCase());
-  for(const p of provs){const nm=p===viaOpenAI?"ChatGPT":p===viaGemini?"Gemini":"Groq";let live=null,spoken=0;const t0=performance.now();
+  for(const p of provs){const nm=p===viaWorker?"Server":p===viaOpenAI?"ChatGPT":p===viaGemini?"Gemini":"Groq";let live=null,spoken=0;const t0=performance.now();
     const part=(full,fin)=>{
       if(!live){live=document.createElement("div");live.className="j";$("#log").append(live);LAT=Math.round(performance.now()-t0);hud()}
       live.textContent=full.replace(/[*_`#]/g,"");$("#log").scrollTop=1e5;
@@ -425,7 +458,7 @@ async function ai(text){
       const rest=full.slice(spoken);let cut=0,m;const re=/[.!?…](?=\s|$)/g;while(m=re.exec(rest))cut=m.index+1;
       const take=fin?rest:rest.slice(0,cut);if(take.trim()){spoken+=take.length;enq(take)}
     };
-    try{window.speechSynthesis?.cancel();stopTTS();SP.n=0;const raw=await p(g,f=>part(f,false));const out=raw.replace(/[*_`#]/g,"").trim();if(out){part(raw,true);STREAMED=true;hist.push({role:"assistant",text:out});return out}}catch(e){if(live)live.remove();window.speechSynthesis?.cancel();stopTTS();SP.n=0;err+=(err?" · ":"")+(e.name==="TimeoutError"||e.name==="AbortError"?nm+" tempo scaduto":/Failed to fetch|Load failed|NetworkError/i.test(e.message)?nm+" rete non raggiungibile":e.message)}}
+    try{window.speechSynthesis?.cancel();stopTTS();SP.n=0;const raw=await p(g,f=>part(f,false));const out=raw.replace(/[*_`#]/g,"").trim();if(out){part(raw,true);STREAMED=true;PS[K(p)]={ms:Math.round(performance.now()-t0),f:0};hist.push({role:"assistant",text:out});return out}}catch(e){PS[K(p)]={ms:0,f:Date.now()};if(live)live.remove();window.speechSynthesis?.cancel();stopTTS();SP.n=0;err+=(err?" · ":"")+(e.name==="TimeoutError"||e.name==="AbortError"?nm+" tempo scaduto":/Failed to fetch|Load failed|NetworkError/i.test(e.message)?nm+" rete non raggiungibile":e.message)}}
   hist.pop();return "I servizi gratuiti non rispondono al momento ("+err+"). Riprova tra poco.";
 }
 
@@ -435,7 +468,7 @@ async function handle(raw){
   busy=true;stopListen();log("u",t);setState("thinking");
   const c=t.replace(/^(?:ehi|ehy|ciao|ok|hey|senti)?[\s,]*jarvis[\s,:.!?]*/i,"").trim();
   STREAMED=false;let reply;
-  try{reply=(await local(c,c.toLowerCase()))??(await ai(c))}catch(e){reply="Non riesco a completare la richiesta: "+e.message}
+  try{reply=(FORCEAI?null:await local(c,c.toLowerCase()))??(await ai(c))}catch(e){reply="Non riesco a completare la richiesta: "+e.message}
   if(STREAMED)await drain();else await say(reply);
   busy=false;setState("idle");if(cfg.wake)listen();
 }
@@ -450,10 +483,10 @@ $("#orb").onclick=()=>{
   listen();
 };
 $("#f").onsubmit=e=>{e.preventDefault();const q=$("#q");const v=q.value;q.value="";handle(v)};
-$("#sb").onclick=()=>{$("#ok").value=cfg.ok;$("#spid").value=cfg.spid;$("#am").value=cfg.am;$("#gcid").value=cfg.gcid;$("#spo").checked=cfg.spo;$("#pin").value="";$("#tr").textContent="";$("#gk").value=cfg.gk;$("#qk").value=cfg.qk;$("#gm").value=cfg.gm;$("#qm").value=cfg.qm;$("#vo").checked=cfg.voice;$("#tt").checked=cfg.tts;$("#wk").checked=cfg.wake;$("#sd").showModal()};
+$("#sb").onclick=()=>{$("#ok").value=cfg.ok;$("#wu").value=cfg.wu;$("#wt").value=cfg.wt;$("#spid").value=cfg.spid;$("#am").value=cfg.am;$("#gcid").value=cfg.gcid;$("#spo").checked=cfg.spo;$("#pin").value="";$("#tr").textContent="";$("#gk").value=cfg.gk;$("#qk").value=cfg.qk;$("#gm").value=cfg.gm;$("#qm").value=cfg.qm;$("#vo").checked=cfg.voice;$("#tt").checked=cfg.tts;$("#wk").checked=cfg.wake;$("#sd").showModal()};
 $("#sx").onclick=()=>$("#sd").close();
 $("#ss").onclick=()=>{
-  Object.assign(cfg,{am:$("#am").value.trim(),spid:$("#spid").value.trim(),gcid:$("#gcid").value.trim(),spo:$("#spo").checked,tts:$("#tt").checked,ok:$("#ok").value.trim(),gk:$("#gk").value.trim(),qk:$("#qk").value.trim(),gm:$("#gm").value.trim()||"gemini-3.5-flash-lite",qm:$("#qm").value.trim()||"llama-3.3-70b-versatile",voice:$("#vo").checked,wake:$("#wk").checked});
+  Object.assign(cfg,{wu:$("#wu").value.trim().replace(/\/$/,""),wt:$("#wt").value.trim(),am:$("#am").value.trim(),spid:$("#spid").value.trim(),gcid:$("#gcid").value.trim(),spo:$("#spo").checked,tts:$("#tt").checked,ok:$("#ok").value.trim(),gk:$("#gk").value.trim(),qk:$("#qk").value.trim(),gm:$("#gm").value.trim()||"gemini-3.5-flash-lite",qm:$("#qm").value.trim()||"llama-3.3-70b-versatile",voice:$("#vo").checked,wake:$("#wk").checked});
   persist();$("#sd").close();hud();
   const pn=$("#pin").value.trim();if(pn){if(pn.length<6)log("j","Il PIN deve avere almeno 6 cifre.");else{SALT=crypto.getRandomValues(new Uint8Array(16));derive(pn,SALT).then(k=>{VK=k;persist();log("j","PIN impostato: le chiavi sono cifrate sul dispositivo.")})}}
   const sf=$("#sg").files[0];if(sf)songSet(sf).then(()=>log("j","Canzone di avvio salvata."));
@@ -465,7 +498,7 @@ $("#nx").onclick=()=>$("#nd").close();
 document.addEventListener("visibilitychange",()=>{document.body.classList.toggle("paused",document.hidden);if(document.hidden)HID=Date.now();else if(VK&&HID&&Date.now()-HID>300000)location.reload();if(document.visibilityState==="visible"&&cfg.wake){keepAwake();if(!rec&&!busy)listen()}});
 if(window.speechSynthesis)speechSynthesis.onvoiceschanged=()=>{};
 (()=>{const c=document.createElement("canvas");c.width=c.height=180;const x=c.getContext("2d");x.fillStyle="#04101c";x.fillRect(0,0,180,180);x.strokeStyle="#4fd8ff";x.lineWidth=6;x.beginPath();x.arc(90,90,62,0,7);x.stroke();x.lineWidth=3;x.beginPath();x.arc(90,90,40,0,7);x.stroke();x.fillStyle="rgba(79,216,255,.3)";x.fill();const l=document.createElement("link");l.rel="apple-touch-icon";l.href=c.toDataURL();document.head.append(l)})();
-clock();hud();addEventListener("online",hud);addEventListener("offline",hud);$("#pw").onclick=boot;$("#spb").onclick=()=>{cfg.spid=$("#spid").value.trim();if(!cfg.spid)return $("#tr").textContent="Inserisci il Client ID Spotify.";persist();spAuth()};$("#ggb").onclick=()=>{cfg.gcid=$("#gcid").value.trim();if(!cfg.gcid)return $("#tr").textContent="Inserisci il Client ID Google.";persist();gConnect().catch(e=>log("j","Google: "+e.message))};if(cfg.gcid)gLoad().catch(()=>{});
+clock();hud();addEventListener("online",hud);addEventListener("offline",hud);$("#pw").onclick=boot;$("#spb").onclick=()=>{cfg.spid=$("#spid").value.trim();if(!cfg.spid)return $("#tr").textContent="Inserisci il Client ID Spotify.";persist();spAuth()};$("#ggb").onclick=()=>{cfg.gcid=$("#gcid").value.trim();if(!cfg.gcid)return $("#tr").textContent="Inserisci il Client ID Google.";persist();gConnect().catch(e=>log("j","Google: "+e.message))};if(cfg.gcid)gLoad().catch(()=>{});if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
 if(store.get("jv_vault")){$("#lock").classList.add("on");$("#lb").onclick=unlock;$("#lp").onkeydown=e=>{if(e.key==="Enter")unlock()}}else spBack();$("#sg2").onchange=e=>{const f=e.target.files[0];if(f)songSet(f).then(()=>{$("#sl").textContent="♪ CANZONE PRONTA"})};songGet().then(f=>{if(f)$("#sl").style.display="none"});
 log("j","Sistemi attivi. Tocca il cerchio e parlami, oppure scrivi qui sotto.");
 if(cfg.wake)log("j","Ascolto continuo attivo: tocca il cerchio una volta per riattivare il microfono.");
