@@ -9,7 +9,6 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#04101c">
 <title>Jarvis</title>
-<meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; connect-src 'self' https://api.openai.com https://generativelanguage.googleapis.com https://api.groq.com https://api.coingecko.com https://nominatim.openstreetmap.org https://api.open-meteo.com https://api.spotify.com https://accounts.spotify.com https://gmail.googleapis.com https://www.googleapis.com https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; img-src 'self' data: blob:; media-src 'self' blob: data:; object-src 'none'; base-uri 'none'; form-action 'none'">
 <link rel="preconnect" href="https://generativelanguage.googleapis.com"><link rel="preconnect" href="https://api.groq.com">
 <style>
 :root{--bg:#030b14;--cy:#5ad7ff;--ice:#e4f9ff;--dim:#5f8ea5;--am:#ffb347;--line:#10364b;--glow:90,215,255}
@@ -71,7 +70,6 @@ dialog p{font-size:12px;color:var(--dim);margin-top:8px}
 .row{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
 #nl{display:grid;gap:8px;margin-top:12px;max-height:50vh;overflow:auto}
 #nl div{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid var(--line);padding-bottom:6px}
-#lock{position:fixed;inset:0;z-index:30;background:var(--bg);display:none;place-items:center;align-content:center;gap:14px}#lock.on{display:grid}
 #boot{position:fixed;inset:0;z-index:20;background:var(--bg);display:grid;place-items:center;align-content:center;gap:22px;transition:opacity .9s}
 #boot.off{opacity:0;pointer-events:none}
 #pw{width:min(46vmin,260px);aspect-ratio:1;border-radius:50%;border:2px solid var(--cy);background:radial-gradient(circle,rgba(90,215,255,.25),transparent 70%);color:var(--cy);letter-spacing:.24em;font-size:14px;animation:beat 2.4s ease-in-out infinite}
@@ -115,8 +113,7 @@ dialog p{font-size:12px;color:var(--dim);margin-top:8px}
   <button type="submit">Invia</button>
 </form>
 
-<div id="lock"><input id="lp" type="password" inputmode="numeric" placeholder="PIN" autocomplete="off" style="flex:none;width:min(260px,70vw);text-align:center;letter-spacing:.4em"><button id="lb" type="button">SBLOCCA</button><p id="lm" style="color:var(--am);font-size:12px;min-height:1.4em"></p></div>
-<div id="boot"><button id="pw" type="button">AVVIA SISTEMI</button><label id="sl" style="color:var(--cy);border:1px solid var(--cy);border-radius:4px;padding:8px 14px;letter-spacing:.16em;font-size:12px;cursor:pointer">♪ SCEGLI LA CANZONE<input id="sg2" type="file" accept="audio/*" hidden></label><pre id="bl"></pre></div>
+<div id="boot"><button id="pw" type="button">AVVIA SISTEMI</button><pre id="bl"></pre></div>
 <dialog id="sd">
   <h2>Impostazioni</h2>
   <label>Chiave OpenAI / ChatGPT (platform.openai.com)<input id="ok" type="password" autocomplete="off"></label>
@@ -126,12 +123,6 @@ dialog p{font-size:12px;color:var(--dim);margin-top:8px}
   <label>Modello Groq<input id="qm" type="text"></label>
   <label class="c"><input id="vo" type="checkbox">Risposte a voce</label>
   <label class="c"><input id="wk" type="checkbox">Ascolto continuo: rispondo quando dici “Jarvis”</label>
-  <label>Spotify Client ID (developer.spotify.com)<input id="spid" type="text" autocomplete="off"></label>
-  <label class="c"><input id="spo" type="checkbox"> Canzone di avvio da Spotify (Premium e app Spotify aperta)</label>
-  <label>Google Client ID (console.cloud.google.com)<input id="gcid" type="text" autocomplete="off"></label>
-  <div class="row" style="justify-content:flex-start"><button id="spb" type="button">Collega Spotify</button><button id="ggb" type="button">Collega Google</button></div>
-  <label>PIN di sicurezza (min. 6 cifre: cifra le chiavi sul dispositivo)<input id="pin" type="password" inputmode="numeric" autocomplete="new-password"></label>
-  <label class="c"><input id="tt" type="checkbox"> Voce ChatGPT stile Jarvis (maggiordomo britannico, richiede chiave OpenAI)</label>
   <div><button id="tst" type="button">Testa connessioni</button><p id="tr"></p></div>
   <label>Canzone di avvio (il tuo file del brano, scelto da File)<input id="sg" type="file" accept="audio/*"></label>
   <p><a href="https://music.apple.com/search?term=shoot%20to%20thrill%20ac%2Fdc" target="_blank" rel="noopener" style="color:var(--cy)">Non hai il file? Cerca il brano su Apple Music</a></p>
@@ -147,7 +138,7 @@ dialog p{font-size:12px;color:var(--dim);margin-top:8px}
 <script>
 const $=s=>document.querySelector(s);
 const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch{return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
-let cfg=Object.assign({spid:"",gcid:"",spo:false,tts:true,ok:"",om:"gpt-4.1-mini",gk:"",qk:"",gm:"gemini-3.5-flash-lite",qm:"llama-3.3-70b-versatile",voice:true,wake:false},store.get("jv_cfg",{}));
+let cfg=Object.assign({ok:"",om:"gpt-4.1-mini",gk:"",qk:"",gm:"gemini-3.5-flash-lite",qm:"llama-3.3-70b-versatile",voice:true,wake:false},store.get("jv_cfg",{}));
 if(/^gemini-(2\.5|3\.8)-flash$/.test(cfg.gm))cfg.gm="gemini-3.5-flash-lite";
 let notes=store.get("jv_notes",[]),timers=[],hist=[],busy=false,rec=null,lock=null;
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
@@ -158,14 +149,13 @@ function log(role,text){const d=document.createElement("div");d.className=role;d
 function clock(){const n=new Date();$("#clock").textContent=n.toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"});$("#date").textContent=n.toLocaleDateString("it-IT",{weekday:"long",day:"numeric",month:"long"})}
 
 /* Voce in uscita */
-function pickVoice(){const v=speechSynthesis.getVoices().filter(x=>x.lang.startsWith("it"));return v.find(x=>/luca|enhanced|premium/i.test(x.name))||v[0]}
+function pickVoice(){const v=speechSynthesis.getVoices().filter(x=>x.lang.startsWith("it"));return v.find(x=>/enhanced|premium|luca|alice/i.test(x.name))||v[0]}
 function say(text){
   log("j",text);
-  if(cfg.voice&&cfg.tts&&cfg.ok){stopTTS();SP.n=0;enq(text);return drain()}
   return new Promise(res=>{
     if(!cfg.voice||!window.speechSynthesis)return res();
     speechSynthesis.cancel();
-    const u=new SpeechSynthesisUtterance(text);u.lang="it-IT";u.rate=.98;u.pitch=.82;
+    const u=new SpeechSynthesisUtterance(text);u.lang="it-IT";u.rate=1.05;
     const v=pickVoice();if(v)u.voice=v;
     const t=setTimeout(res,Math.min(60000,text.length*130+3000));
     u.onstart=()=>setState("speaking");
@@ -175,17 +165,8 @@ function say(text){
 }
 
 /* Voce a frasi: parla mentre la risposta arriva */
-const SP={n:0,res:null};let TA=null,TCH=Promise.resolve();
-const SIL="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
-function unlockTTS(){try{TA=TA||new Audio();TA.src=SIL;TA.play().catch(()=>{})}catch{}}
-function stopTTS(){TCH=Promise.resolve();try{if(TA){TA.pause();TA.removeAttribute("src")}}catch{}}
-async function ttsFetch(t){const r=await post("https://api.openai.com/v1/audio/speech",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+cfg.ok},body:JSON.stringify({model:"gpt-4o-mini-tts",voice:"onyx",input:t,response_format:"mp3",instructions:"Parla in italiano come un maggiordomo britannico impeccabile: voce profonda, calma, elegante, con ironia sottile e ritmo misurato."})},20000);if(!r.ok)throw new Error(await em("Voce",r));return URL.createObjectURL(await r.blob())}
-function enqTTS(t){SP.n++;const pr=ttsFetch(t).catch(()=>null);
-  TCH=TCH.then(async()=>{const u=await pr;setState("speaking");
-    if(u&&TA){TA.src=u;try{await TA.play();await new Promise(r=>{TA.onended=TA.onerror=r})}catch{}}
-    else if(window.speechSynthesis){await new Promise(r=>{const x=new SpeechSynthesisUtterance(t);x.lang="it-IT";x.rate=.98;x.pitch=.82;const v=pickVoice();if(v)x.voice=v;x.onend=x.onerror=r;speechSynthesis.speak(x)})}
-    SP.n--;if(SP.n<=0&&SP.res)SP.res()})}let STREAMED=false,LAT=0,LM=0;
-function enq(t){t=t.replace(/[*_`#]/g,"").trim();if(!t)return;if(cfg.tts&&cfg.ok)return enqTTS(t);const u=new SpeechSynthesisUtterance(t);u.lang="it-IT";u.rate=.98;u.pitch=.82;const v=pickVoice();if(v)u.voice=v;SP.n++;u.onstart=()=>setState("speaking");u.onend=u.onerror=()=>{SP.n--;if(SP.n<=0&&SP.res)SP.res()};speechSynthesis.speak(u)}
+const SP={n:0,res:null};let STREAMED=false,LAT=0,LM=0;
+function enq(t){t=t.replace(/[*_`#]/g,"").trim();if(!t)return;const u=new SpeechSynthesisUtterance(t);u.lang="it-IT";u.rate=1.05;const v=pickVoice();if(v)u.voice=v;SP.n++;u.onstart=()=>setState("speaking");u.onend=u.onerror=()=>{SP.n--;if(SP.n<=0&&SP.res)SP.res()};speechSynthesis.speak(u)}
 function drain(){return new Promise(r=>{if(SP.n<=0)return r();SP.res=r;setTimeout(r,60000)})}
 function hud(){const e=i=>$("#"+i);if(!e("r1"))return;e("r1").textContent=navigator.onLine?"ONLINE":"OFFLINE";e("r2").textContent=LAT?LAT+" MS":"--";e("r3").textContent=(cfg.gm||"").replace("gemini-","").toUpperCase();e("r4").textContent=timers.length+" / "+notes.length}
 
@@ -194,20 +175,20 @@ let SONG=null,gain=null;
 const idb=()=>new Promise((res,rej)=>{const r=indexedDB.open("jv",1);r.onupgradeneeded=()=>r.result.createObjectStore("f");r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
 async function songGet(){try{const d=await idb();return await new Promise(r=>{const q=d.transaction("f").objectStore("f").get("song");q.onsuccess=()=>r(q.result);q.onerror=()=>r(null)})}catch{return null}}
 async function songSet(f){const d=await idb();return new Promise(r=>{const t=d.transaction("f","readwrite");t.objectStore("f").put(f,"song");t.oncomplete=()=>r()})}
-async function playSong(){let f=await songGet();if(!f){try{const r=await fetch("shoot-to-thrill.mp3");if(r.ok)f=await r.blob()}catch{}}if(!f)return false;try{const ctx=new (window.AudioContext||window.webkitAudioContext)(),a=new Audio(URL.createObjectURL(f));gain=ctx.createGain();ctx.createMediaElementSource(a).connect(gain);gain.connect(ctx.destination);await ctx.resume();await a.play();SONG={ctx,a};return true}catch{return false}}
+async function playSong(){const f=await songGet();if(!f)return false;try{const ctx=new (window.AudioContext||window.webkitAudioContext)(),a=new Audio(URL.createObjectURL(f));gain=ctx.createGain();ctx.createMediaElementSource(a).connect(gain);gain.connect(ctx.destination);await ctx.resume();await a.play();SONG={ctx,a};return true}catch{return false}}
 function duck(v,s=.6){if(!gain)return;const g=gain.gain,t=gain.context.currentTime;g.cancelScheduledValues(t);g.setValueAtTime(g.value,t);g.linearRampToValueAtTime(v,t+s)}
 function endSong(){if(!SONG)return;const S=SONG;duck(0,3);SONG=null;setTimeout(()=>{try{S.a.pause();S.ctx.close()}catch{}gain=null},3200)}
 async function boot(){
-  const b=$("#boot"),pl=$("#bl");b.classList.add("go");unlockTTS();
+  const b=$("#boot"),pl=$("#bl");b.classList.add("go");
   if(cfg.voice&&window.speechSynthesis)speechSynthesis.speak(new SpeechSynthesisUtterance(""));
   const L=["JARVIS · AVVIO SISTEMI","NUCLEO ......... OK","VOCE ........... OK","RETE ........... "+(navigator.onLine?"OK":"OFF"),"TUTTI I SISTEMI ATTIVI"];
   let i=0;const t=setInterval(()=>{pl.textContent+=(L[i++]||"")+"\n";if(i>=L.length)clearInterval(t)},900);
-  let song=false,vsp=false;if(cfg.spo&&SPT){try{await spPlay();song=vsp=true}catch(e){log("j","Spotify: "+e.message)}}if(!song)song=await playSong();if(vsp)setTimeout(()=>spPause().catch(()=>{}),20000);
-  await new Promise(r=>setTimeout(r,song?9000:4200));
+  const song=await playSong();
+  await new Promise(r=>setTimeout(r,song?6500:4200));
   b.classList.add("off");setTimeout(()=>b.remove(),1000);
   const h=new Date().getHours();
   duck(.25);await say((h<6?"Buonanotte":h<13?"Buongiorno":h<19?"Buon pomeriggio":"Buonasera")+", signore. Tutti i sistemi sono attivi.");
-  duck(.85,1.5);setTimeout(endSong,20000);
+  duck(.85,1.5);setTimeout(endSong,9000);
   if(!song)log("j","Per la musica di avvio scegli il file del brano nelle impostazioni.");
   if(cfg.wake)listen();
 }
@@ -282,8 +263,6 @@ async function life(c,l){
   if(/cosa devo fare|le mie attività|la mia agenda/.test(l))return TASKS.length?"Hai "+TASKS.length+" attività: "+TASKS.map((t,i)=>(i+1)+", "+t).join("; ")+".":"Nessuna attività in sospeso.";
   if(m=l.match(/^(?:completa|fatto)\s+(?:attività\s+)?(\d+)/)){const t=TASKS.splice(m[1]-1,1);store.set("jv_tasks",TASKS);return t.length?"Completata: "+t[0]+".":"Non trovo quell’attività."}
   if(m=l.match(/prezzo (?:del |di )?(bitcoin|btc|ethereum|eth|solana)/)){const id={bitcoin:"bitcoin",btc:"bitcoin",ethereum:"ethereum",eth:"ethereum",solana:"solana"}[m[1]],x=(await (await post("https://api.coingecko.com/api/v3/simple/price?ids="+id+"&vs_currencies=eur&include_24hr_change=true",{},10000)).json())[id];return x?m[1]+" vale "+eur(x.eur)+", "+(x.eur_24h_change>=0?"+":"")+x.eur_24h_change.toFixed(1)+" per cento nelle ultime 24 ore.":"Dati non disponibili."}
-  if(/posta|email|mail/.test(l)&&/leggi|controlla|nuov|non lett|riassumi|ho /.test(l))return await mail();
-  if(/agenda|calendario|impegni|appuntamenti/.test(l)&&/oggi|domani|settimana|cosa ho/.test(l))return await agenda(/domani/.test(l)?1:0,/settimana/.test(l)?7:1);
   return null
 }
 async function local(c,l){
@@ -319,7 +298,7 @@ async function pickGemini(){
   const v=n=>+n.match(/gemini-(\d+(?:\.\d+)?)/)[1];
   const ok=((await r.json()).models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes("generateContent")).map(m=>m.name.replace("models/","")).filter(n=>/^gemini-\d+(\.\d+)?-flash(-lite)?$/.test(n)).sort((x,y)=>(/lite/.test(y)-/lite/.test(x))||v(y)-v(x));
   if(!ok.length)throw new Error("nessun modello Gemini disponibile per questa chiave");
-  cfg.gm=ok[0];persist();return cfg.gm;
+  cfg.gm=ok[0];store.set("jv_cfg",cfg);return cfg.gm;
 }
 /* Streaming: il timeout scatta solo se non arrivano dati per molto tempo, non sul totale */
 const TO=()=>Object.assign(new Error("timeout"),{name:"TimeoutError"});
@@ -357,7 +336,7 @@ async function pickGroq(){
   const ids=((await r.json()).data||[]).filter(m=>m.active!==false).map(m=>m.id).filter(i=>!/whisper|guard|tts|prompt|embed|distil/i.test(i));
   const m=ids.find(i=>i==="llama-3.3-70b-versatile")||ids.find(i=>/gpt-oss-120b/.test(i))||ids.find(i=>/llama.*70b/.test(i))||ids.find(i=>/llama|qwen|gpt-oss/.test(i));
   if(!m)throw new Error("nessun modello Groq disponibile");
-  cfg.qm=m;persist();return m;
+  cfg.qm=m;store.set("jv_cfg",cfg);return m;
 }
 async function viaGroq(g,cb){
   const go=()=>post("https://api.groq.com/openai/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+cfg.qk},body:JSON.stringify({model:cfg.qm,stream:true,messages:[{role:"system",content:SYS()},...hist.map(h=>({role:h.role,content:h.text}))]})},20000);
@@ -367,33 +346,8 @@ async function viaGroq(g,cb){
   if(!r.ok)throw new Error(await em("Groq",r));
   return sse(r,j=>j.choices?.[0]?.delta?.content,cb)
 }
-/* Caveau: chiavi cifrate (AES-GCM, PBKDF2) con il tuo PIN; sbloccate solo in memoria */
-const SEC=["ok","gk","qk"],B=a=>btoa(String.fromCharCode(...new Uint8Array(a))),U=t=>Uint8Array.from(atob(t),c=>c.charCodeAt(0));
-let VK=null,SALT=null,FAIL=0,HID=0,SPT=cfg.sp||null,SPA=null,SPX=0,GT=null,GX=0;
-const derive=async(pin,salt)=>{const k=await crypto.subtle.importKey("raw",new TextEncoder().encode(pin),"PBKDF2",false,["deriveKey"]);return crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations:250000,hash:"SHA-256"},k,{name:"AES-GCM",length:256},false,["encrypt","decrypt"])};
-async function persist(){const pub={...cfg};if(VK){SEC.forEach(k=>delete pub[k]);delete pub.sp}else pub.sp=SPT;store.set("jv_cfg",pub);if(!VK)return;const sec={sp:SPT};SEC.forEach(k=>sec[k]=cfg[k]);const iv=crypto.getRandomValues(new Uint8Array(12)),ct=await crypto.subtle.encrypt({name:"AES-GCM",iv},VK,new TextEncoder().encode(JSON.stringify(sec)));store.set("jv_vault",{s:B(SALT),i:B(iv),d:B(ct)})}
-async function unlock(){const v=store.get("jv_vault");try{SALT=U(v.s);const k=await derive($("#lp").value,SALT),sec=JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:U(v.i)},k,U(v.d))));VK=k;SEC.forEach(x=>cfg[x]=sec[x]||"");SPT=sec.sp||null;$("#lock").classList.remove("on");$("#lp").value="";$("#lm").textContent="";hud();spBack()}catch{FAIL++;$("#lm").textContent="PIN errato";await new Promise(r=>setTimeout(r,Math.min(30000,FAIL*1500)))}}
-/* Spotify: OAuth PKCE, riproduzione sul dispositivo con l’app Spotify attiva */
-const SPR=()=>location.origin+location.pathname,b64u=b=>B(b).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
-async function spAuth(){const v=b64u(crypto.getRandomValues(new Uint8Array(48)));sessionStorage.setItem("jv_pk",v);const ch=b64u(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(v)));location.href="https://accounts.spotify.com/authorize?"+new URLSearchParams({client_id:cfg.spid,response_type:"code",redirect_uri:SPR(),scope:"user-read-playback-state user-modify-playback-state",code_challenge_method:"S256",code_challenge:ch})}
-async function spTok(b){const r=await post("https://accounts.spotify.com/api/token",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:new URLSearchParams({client_id:cfg.spid,...b})},15000);if(!r.ok)throw new Error(await em("Spotify",r));const j=await r.json();SPA=j.access_token;SPX=Date.now()+j.expires_in*1000-60000;if(j.refresh_token){SPT=j.refresh_token;persist()}}
-async function spBack(){const q=new URLSearchParams(location.search),c=q.get("code"),v=sessionStorage.getItem("jv_pk");if(!c||!v)return;try{await spTok({grant_type:"authorization_code",code:c,redirect_uri:SPR(),code_verifier:v});log("j","Spotify collegato.")}catch(e){log("j",e.message)}sessionStorage.removeItem("jv_pk");history.replaceState(null,"",SPR())}
-async function spH(){if(!SPA||Date.now()>SPX){if(!SPT)throw new Error("non collegato");await spTok({grant_type:"refresh_token",refresh_token:SPT})}return{Authorization:"Bearer "+SPA}}
-async function spPlay(){const H=await spH(),J=async u=>(await post(u,{headers:H},15000)).json();
-  const tr=(await J("https://api.spotify.com/v1/search?type=track&limit=1&q="+encodeURIComponent("track:Shoot to Thrill artist:AC/DC"))).tracks?.items?.[0];if(!tr)throw new Error("brano non trovato");
-  const dv=(await J("https://api.spotify.com/v1/me/player/devices")).devices||[],d=dv.find(x=>x.is_active)||dv[0];if(!d)throw new Error("apri prima l’app Spotify sull’iPad");
-  const r=await post("https://api.spotify.com/v1/me/player/play?device_id="+d.id,{method:"PUT",headers:{...H,"Content-Type":"application/json"},body:JSON.stringify({uris:[tr.uri]})},15000);if(!r.ok&&r.status!==204)throw new Error(await em("Spotify",r))}
-async function spPause(){const H=await spH();await post("https://api.spotify.com/v1/me/player/pause",{method:"PUT",headers:H},15000)}
-/* Google: sola lettura di Gmail e Calendar, token solo in memoria */
-function gLoad(){return new Promise((res,rej)=>{if(window.google?.accounts)return res();const e=document.createElement("script");e.src="https://accounts.google.com/gsi/client";e.onload=res;e.onerror=rej;document.head.append(e)})}
-async function gConnect(){await gLoad();google.accounts.oauth2.initTokenClient({client_id:cfg.gcid,scope:"https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/calendar.readonly",callback:r=>{if(r.access_token){GT=r.access_token;GX=Date.now()+r.expires_in*1000-60000;log("j","Google collegato per un’ora.")}else log("j","Collegamento Google non riuscito.")}}).requestAccessToken()}
-async function gj(u){if(!GT||Date.now()>GX)throw new Error("Google non collegato: tocca Collega Google nelle impostazioni");const r=await post(u,{headers:{Authorization:"Bearer "+GT}},20000);if(!r.ok)throw new Error(await em("Google",r));return r.json()}
-async function mail(){const l=(await gj("https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=6&q="+encodeURIComponent("is:unread in:inbox newer_than:3d"))).messages||[];if(!l.length)return "Nessuna email non letta negli ultimi tre giorni.";
-  const ms=await Promise.all(l.map(m=>gj("https://gmail.googleapis.com/gmail/v1/users/me/messages/"+m.id+"?format=metadata&metadataHeaders=From&metadataHeaders=Subject"))),h=(m,n)=>(m.payload.headers.find(x=>x.name===n)||{}).value||"";
-  return ai("Riassumi in modo utile queste email non lette e dimmi quali richiedono azione:\n"+ms.map((m,i)=>(i+1)+". Da "+h(m,"From").replace(/<.*>/,"").trim()+": "+h(m,"Subject")+" — "+(m.snippet||"").slice(0,140)).join("\n"))}
-async function agenda(d,n){const a=new Date();a.setHours(0,0,0,0);a.setDate(a.getDate()+d);const b=new Date(a);b.setDate(b.getDate()+n);const e=(await gj("https://www.googleapis.com/calendar/v3/calendars/primary/events?singleEvents=true&orderBy=startTime&maxResults=10&timeMin="+a.toISOString()+"&timeMax="+b.toISOString())).items||[];if(!e.length)return "Nessun impegno in calendario.";return e.map(x=>(x.start.dateTime?new Date(x.start.dateTime).toLocaleString("it-IT",{weekday:"short",hour:"2-digit",minute:"2-digit"}):"tutto il giorno")+", "+(x.summary||"senza titolo")).join(". ")+"."}
 async function em(n,r){let t="";try{t=(JSON.parse(await r.text()).error||{}).message||""}catch{}return n+" "+r.status+(t?": "+t.slice(0,110):"")}
-async function pickOpenAI(){const r=await post("https://api.openai.com/v1/models",{headers:{Authorization:"Bearer "+cfg.ok}},15000);if(!r.ok)throw new Error(await em("ChatGPT",r));const ids=((await r.json()).data||[]).map(m=>m.id).filter(i=>/^gpt-/.test(i)&&!/audio|realtime|image|tts|transcribe|search|instruct|codex|preview|\d{4}-\d\d-\d\d$/.test(i));const m=["gpt-4.1-mini","gpt-4o-mini","gpt-5-mini"].find(x=>ids.includes(x))||ids.find(i=>/mini/.test(i))||ids[0];if(!m)throw new Error("ChatGPT: nessun modello disponibile");cfg.om=m;persist();return m}
+async function pickOpenAI(){const r=await post("https://api.openai.com/v1/models",{headers:{Authorization:"Bearer "+cfg.ok}},15000);if(!r.ok)throw new Error(await em("ChatGPT",r));const ids=((await r.json()).data||[]).map(m=>m.id).filter(i=>/^gpt-/.test(i)&&!/audio|realtime|image|tts|transcribe|search|instruct|codex|preview|\d{4}-\d\d-\d\d$/.test(i));const m=["gpt-4.1-mini","gpt-4o-mini","gpt-5-mini"].find(x=>ids.includes(x))||ids.find(i=>/mini/.test(i))||ids[0];if(!m)throw new Error("ChatGPT: nessun modello disponibile");cfg.om=m;store.set("jv_cfg",cfg);return m}
 async function viaOpenAI(g,cb){
   const go=()=>post("https://api.openai.com/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+cfg.ok},body:JSON.stringify({model:cfg.om,stream:true,messages:[{role:"system",content:SYS()},...hist.map(h=>({role:h.role,content:h.text}))]})},20000);
   let r;try{r=await go()}catch(e){if(e.name==="AbortError")throw TO();throw e}
@@ -422,7 +376,7 @@ async function ai(text){
       const rest=full.slice(spoken);let cut=0,m;const re=/[.!?…](?=\s|$)/g;while(m=re.exec(rest))cut=m.index+1;
       const take=fin?rest:rest.slice(0,cut);if(take.trim()){spoken+=take.length;enq(take)}
     };
-    try{window.speechSynthesis?.cancel();stopTTS();SP.n=0;const raw=await p(g,f=>part(f,false));const out=raw.replace(/[*_`#]/g,"").trim();if(out){part(raw,true);STREAMED=true;hist.push({role:"assistant",text:out});return out}}catch(e){if(live)live.remove();window.speechSynthesis?.cancel();stopTTS();SP.n=0;err+=(err?" · ":"")+(e.name==="TimeoutError"||e.name==="AbortError"?nm+" tempo scaduto":/Failed to fetch|Load failed|NetworkError/i.test(e.message)?nm+" rete non raggiungibile":e.message)}}
+    try{window.speechSynthesis?.cancel();SP.n=0;const raw=await p(g,f=>part(f,false));const out=raw.replace(/[*_`#]/g,"").trim();if(out){part(raw,true);STREAMED=true;hist.push({role:"assistant",text:out});return out}}catch(e){if(live)live.remove();window.speechSynthesis?.cancel();SP.n=0;err+=(err?" · ":"")+(e.name==="TimeoutError"||e.name==="AbortError"?nm+" tempo scaduto":/Failed to fetch|Load failed|NetworkError/i.test(e.message)?nm+" rete non raggiungibile":e.message)}}
   hist.pop();return "I servizi gratuiti non rispondono al momento ("+err+"). Riprova tra poco.";
 }
 
@@ -440,33 +394,31 @@ async function handle(raw){
 /* Interfaccia */
 function keepAwake(){try{navigator.wakeLock?.request("screen").then(l=>lock=l).catch(()=>{})}catch{}}
 $("#orb").onclick=()=>{
-  endSong();unlockTTS();
+  endSong();
   if(cfg.voice&&window.speechSynthesis&&!speechSynthesis.speaking)speechSynthesis.speak(new SpeechSynthesisUtterance(""));
   if(speechSynthesis.speaking){speechSynthesis.cancel();return}
   if(rec&&!cfg.wake){stopListen();setState("idle");return}
   listen();
 };
 $("#f").onsubmit=e=>{e.preventDefault();const q=$("#q");const v=q.value;q.value="";handle(v)};
-$("#sb").onclick=()=>{$("#ok").value=cfg.ok;$("#spid").value=cfg.spid;$("#gcid").value=cfg.gcid;$("#spo").checked=cfg.spo;$("#pin").value="";$("#tr").textContent="";$("#gk").value=cfg.gk;$("#qk").value=cfg.qk;$("#gm").value=cfg.gm;$("#qm").value=cfg.qm;$("#vo").checked=cfg.voice;$("#tt").checked=cfg.tts;$("#wk").checked=cfg.wake;$("#sd").showModal()};
+$("#sb").onclick=()=>{$("#ok").value=cfg.ok;$("#tr").textContent="";$("#gk").value=cfg.gk;$("#qk").value=cfg.qk;$("#gm").value=cfg.gm;$("#qm").value=cfg.qm;$("#vo").checked=cfg.voice;$("#wk").checked=cfg.wake;$("#sd").showModal()};
 $("#sx").onclick=()=>$("#sd").close();
 $("#ss").onclick=()=>{
-  Object.assign(cfg,{spid:$("#spid").value.trim(),gcid:$("#gcid").value.trim(),spo:$("#spo").checked,tts:$("#tt").checked,ok:$("#ok").value.trim(),gk:$("#gk").value.trim(),qk:$("#qk").value.trim(),gm:$("#gm").value.trim()||"gemini-3.5-flash-lite",qm:$("#qm").value.trim()||"llama-3.3-70b-versatile",voice:$("#vo").checked,wake:$("#wk").checked});
-  persist();$("#sd").close();hud();
-  const pn=$("#pin").value.trim();if(pn){if(pn.length<6)log("j","Il PIN deve avere almeno 6 cifre.");else{SALT=crypto.getRandomValues(new Uint8Array(16));derive(pn,SALT).then(k=>{VK=k;persist();log("j","PIN impostato: le chiavi sono cifrate sul dispositivo.")})}}
+  Object.assign(cfg,{ok:$("#ok").value.trim(),gk:$("#gk").value.trim(),qk:$("#qk").value.trim(),gm:$("#gm").value.trim()||"gemini-3.5-flash-lite",qm:$("#qm").value.trim()||"llama-3.3-70b-versatile",voice:$("#vo").checked,wake:$("#wk").checked});
+  store.set("jv_cfg",cfg);$("#sd").close();hud();
   const sf=$("#sg").files[0];if(sf)songSet(sf).then(()=>log("j","Canzone di avvio salvata."));
   if(cfg.voice&&window.speechSynthesis)speechSynthesis.speak(new SpeechSynthesisUtterance(""));
   if(cfg.wake){listen();keepAwake()}else{stopListen();setState("idle");try{lock?.release()}catch{}}
 };
 $("#nb").onclick=()=>{renderNotes();$("#nd").showModal()};
 $("#nx").onclick=()=>$("#nd").close();
-document.addEventListener("visibilitychange",()=>{document.body.classList.toggle("paused",document.hidden);if(document.hidden)HID=Date.now();else if(VK&&HID&&Date.now()-HID>300000)location.reload();if(document.visibilityState==="visible"&&cfg.wake){keepAwake();if(!rec&&!busy)listen()}});
+document.addEventListener("visibilitychange",()=>{document.body.classList.toggle("paused",document.hidden);if(document.visibilityState==="visible"&&cfg.wake){keepAwake();if(!rec&&!busy)listen()}});
 if(window.speechSynthesis)speechSynthesis.onvoiceschanged=()=>{};
 (()=>{const c=document.createElement("canvas");c.width=c.height=180;const x=c.getContext("2d");x.fillStyle="#04101c";x.fillRect(0,0,180,180);x.strokeStyle="#4fd8ff";x.lineWidth=6;x.beginPath();x.arc(90,90,62,0,7);x.stroke();x.lineWidth=3;x.beginPath();x.arc(90,90,40,0,7);x.stroke();x.fillStyle="rgba(79,216,255,.3)";x.fill();const l=document.createElement("link");l.rel="apple-touch-icon";l.href=c.toDataURL();document.head.append(l)})();
-clock();hud();addEventListener("online",hud);addEventListener("offline",hud);$("#pw").onclick=boot;$("#spb").onclick=()=>{cfg.spid=$("#spid").value.trim();if(!cfg.spid)return $("#tr").textContent="Inserisci il Client ID Spotify.";persist();spAuth()};$("#ggb").onclick=()=>{cfg.gcid=$("#gcid").value.trim();if(!cfg.gcid)return $("#tr").textContent="Inserisci il Client ID Google.";persist();gConnect().catch(e=>log("j","Google: "+e.message))};if(cfg.gcid)gLoad().catch(()=>{});
-if(store.get("jv_vault")){$("#lock").classList.add("on");$("#lb").onclick=unlock;$("#lp").onkeydown=e=>{if(e.key==="Enter")unlock()}}else spBack();$("#sg2").onchange=e=>{const f=e.target.files[0];if(f)songSet(f).then(()=>{$("#sl").textContent="♪ CANZONE PRONTA"})};songGet().then(f=>{if(f)$("#sl").style.display="none"});
+clock();hud();addEventListener("online",hud);addEventListener("offline",hud);$("#pw").onclick=boot;
 log("j","Sistemi attivi. Tocca il cerchio e parlami, oppure scrivi qui sotto.");
 if(cfg.wake)log("j","Ascolto continuo attivo: tocca il cerchio una volta per riattivare il microfono.");
-if(!store.get("jv_vault")&&!cfg.ok&&!cfg.gk&&!cfg.qk)log("j","Per le domande aperte inserisci una chiave gratuita nelle impostazioni. Timer, note, meteo e orario funzionano già.");
+if(!cfg.ok&&!cfg.gk&&!cfg.qk)log("j","Per le domande aperte inserisci una chiave gratuita nelle impostazioni. Timer, note, meteo e orario funzionano già.");
 </script>
 </body>
 </html>
